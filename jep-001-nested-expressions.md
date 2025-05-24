@@ -1,23 +1,25 @@
-# Nested Expressions
-
-| **JEP**     | 1               |
-| ----------- | --------------- |
-| **Author**  | Michael Dowling |
-| **Status**  | accepted        |
-| **Created** | 27-Nov-2013     |
+---
+title: Nested Expressions
+jep: 1
+author: Michael Dowling
+created: 27-Nov-2013
+semver: MINOR
+status: accepted
+---
 
 ## Abstract
 
-This document proposes modifying the [JMESPath grammar](https://jmespath.readthedocs.org/en/latest/specification.html#grammar)
+This document proposes modifying the
+[JMESPath grammar](https://jmespath.readthedocs.org/en/latest/specification.html#grammar)
 to support arbitrarily nested expressions within `multi-select-list` and
 `multi-select-hash` expressions.
 
 ## Motivation
 
 This JMESPath grammar currently does not allow arbitrarily nested expressions
-within `multi-select-list` and `multi-select-hash` expressions. This
-prevents nested branching expressions, nested `multi-select-list` expressions
-within other multi expressions, and nested `or-expressions` within any
+within `multi-select-list` and `multi-select-hash` expressions. This prevents
+nested branching expressions, nested `multi-select-list` expressions within
+other multi expressions, and nested `or-expressions` within any
 multi-expression.
 
 By allowing any expression to be nested within a `multi-select-list` and
@@ -28,11 +30,11 @@ Supporting arbitrarily nested expressions within other expressions requires:
 
 - Updating the grammar to remove `non-branched-expr`
 
-- Updating compliance tests to add various permutations of the grammar to
-  ensure implementations are compliant.
+- Updating compliance tests to add various permutations of the grammar to ensure
+  implementations are compliant.
 
-- Updating the JMESPath documentation to reflect the ability to arbitrarily
-  nest expressions.
+- Updating the JMESPath documentation to reflect the ability to arbitrarily nest
+  expressions.
 
 ## Nested Expression Examples
 
@@ -169,9 +171,10 @@ Result:
 ## Modified Grammar
 
 The following modified JMESPath grammar supports arbitrarily nested expressions
-and is specified using ABNF, as described in [RFC4234](https://tools.ietf.org/html/rfc4234)
+and is specified using ABNF, as described in
+[RFC4234](https://tools.ietf.org/html/rfc4234)
 
-```
+```abnf
 expression        = sub-expression / index-expression / or-expression / identifier / "*"
 expression        =/ multi-select-list / multi-select-hash
 sub-expression    = expression "." expression
