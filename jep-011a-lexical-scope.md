@@ -7,6 +7,8 @@ semver: MINOR
 status: accepted
 ---
 
+# Lexical Scoping
+
 > This proposal tracks
 > [JEP-018](https://github.com/jmespath/jmespath.jep/blob/main/proposals/0018-lexical-scope.md)
 > proposal from jmespath.org.

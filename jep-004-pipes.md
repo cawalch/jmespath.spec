@@ -7,6 +7,8 @@ semver: MINOR
 status: accepted
 ---
 
+# Pipe Expressions
+
 ## Abstract
 
 This document proposes adding support for piping expressions into subsequent

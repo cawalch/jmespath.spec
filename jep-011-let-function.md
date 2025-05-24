@@ -8,6 +8,8 @@ semver: MINOR
 status: accepted
 ---
 
+# Lexical Scoping
+
 ## Abstract
 
 This JEP proposes a new function `let()` (originally proposed by Michael
