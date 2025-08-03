@@ -3,7 +3,6 @@ title: Array Slice Expressions
 jep: 5
 author: Michael Dowling
 status: accepted
-type: standards-track
 created: 2013-12-08
 ---
 
