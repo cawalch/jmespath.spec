@@ -1,12 +1,13 @@
-# group_by function
+---
+title: group_by
+id: 18
+parent: 3a
+status: accepted
+author: Maxime Labelle
+created: 2022-08-05
+---
 
-|||
-|---|---
-| **JEP**    |  18
-| **Author** | Maxime Labelle
-| **Created**| 05-August-2022
-| **SemVer** | MINOR
-| **Status**| accepted
+# group_by function
 
 ## Abstract
 
@@ -20,17 +21,20 @@ This JEP introduces a new `group_by()` function.
 object group_by(array[object] $elements, expression->string $expr)
 ```
 
-Groups an array `$elements`of objects using an expression `$expr` as the group key.
-The `$expr` expression is applied to each element in the array `$elements` and the 
-resulting value is used as a group key.
+Groups an array `$elements` of objects using an expression `$expr` as the group
+key. The `$expr` expression is applied to each element in the array `$elements`,
+and the resulting value is used as a group key.
 
-The result is an object whose keys are the unique set of string keys and whose respective values are an array of objects matching the group criteria.
+The result is an object whose keys are the string values returned by the
+expression and whose respective values are arrays of objects that produced the
+corresponding group key.
 
-Objects that do not match the group criteria are discarded from the output.
-This includes objects for which applying the `$expr` expression evaluates to `null`.
+Objects for which the `$expr` expression evaluates to `null` are excluded from
+the output.
 
-If the result of applying the `$expr` expression against the current array element
-results in type other than `string` or `null`, an `invalid-type` error MUST be raised.
+If the result of applying the `$expr` expression against the current array
+element results in a type other than `string` or `null`, an `invalid-type` error
+MUST be raised.
 
 ### Examples
 
@@ -49,9 +53,9 @@ Given the following input JSON document:
 
 Example:
 
-|Expression|Result
-|---|---
-|`` group_by(items, &spec.nodeName) ``| ` {"node_01": [{"spec": {"nodeName": "node_01", "other": "values_01"}}, {"spec": {"nodeName": "node_01", "other": "values_04"}}], "node_02": [{"spec": {"nodeName": "node_02", "other": "values_02"}}], "node_03": [{"spec": {"nodeName": "node_03", "other": "values_03"}}]} `
+| Expression                        | Result                                                                                                                                                                                                                                                                        |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `group_by(items, &spec.nodeName)` | `{"node_01": [{"spec": {"nodeName": "node_01", "other": "values_01"}}, {"spec": {"nodeName": "node_01", "other": "values_04"}}], "node_02": [{"spec": {"nodeName": "node_02", "other": "values_02"}}], "node_03": [{"spec": {"nodeName": "node_03", "other": "values_03"}}]}` |
 
 Given the following input JSON document:
 
@@ -65,9 +69,9 @@ Given the following input JSON document:
 }
 ```
 
-Here are a couple of other examples:
+Here are additional examples:
 
-|Expression|Result
-|---|---
-|`` group_by(array, &name) `` | ` {"one":[{"name":"one","b":true}],"two":[{"name":"two","b":false}]} `
-|`` group_by(array, &b) `` | `invalid-type`
+| Expression               | Result                                                               |
+| ------------------------ | -------------------------------------------------------------------- |
+| `group_by(array, &name)` | `{"one":[{"name":"one","b":true}],"two":[{"name":"two","b":false}]}` |
+| `group_by(array, &b)`    | `invalid-type`                                                       |

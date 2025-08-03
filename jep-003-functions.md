@@ -1,6 +1,6 @@
 ---
 title: Functions
-jep: 3
+id: 3
 author: Michael Dowling, James Saryerwinnie
 created: 27-Nov-2013
 obsoleted_by: 3a
@@ -231,7 +231,6 @@ As a final example, here is the steps for evaluating `abs(to_number(bar))`:
    ```
 
    This requires following the same process for `to_number(bar)`:
-
    1. Evaluate the input argument against the current data:
 
       ```abnf
@@ -261,11 +260,11 @@ As a final example, here is the steps for evaluating `abs(to_number(bar))`:
 4. The value of `2` is the resolved value of the function expression
    `abs(to_number(bar))`.
 
-| Expression         | Result | Error                   |
-| ------------------ | ------ | ----------------------- |
-| `` abs(`1`) ``     | `1`    | `null`                  |
-| `` abs(`-1`) ``    | `1`    | `null`                  |
-| `` abs(`"abc"`) `` |        | `<error: invalid-type>` |
+| Expression       | Result | Error                   |
+| ---------------- | ------ | ----------------------- |
+| ``abs(`1`)``     | `1`    | `null`                  |
+| ``abs(`-1`)``    | `1`    | `null`                  |
+| ``abs(`"abc"`)`` |        | `<error: invalid-type>` |
 
 ### avg
 
@@ -292,12 +291,12 @@ number ceil(number $value)
 
 Returns the next highest integer value by rounding up if necessary.
 
-| Expression          | Result |
-| ------------------- | ------ |
-| `` ceil(`1.001`) `` | 2      |
-| `` ceil(`1.9`) ``   | 2      |
-| `` ceil(`1`) ``     | 1      |
-| `` ceil(`"abc"`) `` | `null` |
+| Expression        | Result |
+| ----------------- | ------ |
+| ``ceil(`1.001`)`` | 2      |
+| ``ceil(`1.9`)``   | 2      |
+| ``ceil(`1`)``     | 1      |
+| ``ceil(`"abc"`)`` | `null` |
 
 ### contains
 
@@ -313,16 +312,16 @@ the array is equal to the provided `$search` value.
 If the provided `$subject` is a string, this function returns true if the string
 contains the provided `$search` argument.
 
-| Given        | Expression                          | Result                  |
-| ------------ | ----------------------------------- | ----------------------- |
-| n/a          | `` contains(`"foobar"`, `"foo"`) `` | `true`                  |
-| n/a          | `` contains(`"foobar"`, `"not"`) `` | `false`                 |
-| n/a          | `` contains(`"foobar"`, `"bar"`) `` | `true`                  |
-| n/a          | `` contains(`false`, `"bar"`) ``    | `<error: invalid-type>` |
-| n/a          | `` contains(`"foobar"`, `123`) ``   | `false`                 |
-| `["a", "b"]` | `` contains(@, `"a"`) ``            | `true`                  |
-| `["a"]`      | `` contains(@, `"a"`) ``            | `true`                  |
-| `["a"]`      | `` contains(@, `"b"`) ``            | `false`                 |
+| Given        | Expression                        | Result                  |
+| ------------ | --------------------------------- | ----------------------- |
+| n/a          | ``contains(`"foobar"`, `"foo"`)`` | `true`                  |
+| n/a          | ``contains(`"foobar"`, `"not"`)`` | `false`                 |
+| n/a          | ``contains(`"foobar"`, `"bar"`)`` | `true`                  |
+| n/a          | ``contains(`false`, `"bar"`)``    | `<error: invalid-type>` |
+| n/a          | ``contains(`"foobar"`, `123`)``   | `false`                 |
+| `["a", "b"]` | ``contains(@, `"a"`)``            | `true`                  |
+| `["a"]`      | ``contains(@, `"a"`)``            | `true`                  |
+| `["a"]`      | ``contains(@, `"b"`)``            | `false`                 |
 
 ### floor
 
@@ -332,11 +331,11 @@ number floor(number $value)
 
 Returns the next lowest integer value by rounding down if necessary.
 
-| Expression           | Result |
-| -------------------- | ------ |
-| `` floor(`1.001`) `` | 1      |
-| `` floor(`1.9`) ``   | 1      |
-| `` floor(`1`) ``     | 1      |
+| Expression         | Result |
+| ------------------ | ------ |
+| ``floor(`1.001`)`` | 1      |
+| ``floor(`1.9`)``   | 1      |
+| ``floor(`1`)``     | 1      |
 
 ### join
 
@@ -347,12 +346,12 @@ string join(string $glue, array[string] $stringsarray)
 Returns all of the elements from the provided `$stringsarray` array joined
 together using the `$glue` argument as a separator between each.
 
-| Given               | Expression            | Result                  |
-| ------------------- | --------------------- | ----------------------- |
-| `["a", "b"]`        | `` join(`", "`, @) `` | "a, b"                  |
-| `["a", "b"]`        | `` join(`""`, @) ``   | "ab"                    |
-| `["a", false, "b"]` | `` join(`", "`, @) `` | `<error: invalid-type>` |
-| `[false]`           | `` join(`", "`, @) `` | `<error: invalid-type>` |
+| Given               | Expression          | Result                  |
+| ------------------- | ------------------- | ----------------------- |
+| `["a", "b"]`        | ``join(`", "`, @)`` | "a, b"                  |
+| `["a", "b"]`        | ``join(`""`, @)``   | "ab"                    |
+| `["a", false, "b"]` | ``join(`", "`, @)`` | `<error: invalid-type>` |
+| `[false]`           | ``join(`", "`, @)`` | `<error: invalid-type>` |
 
 ### keys
 
@@ -383,15 +382,15 @@ Returns the length of the given argument using the following types rules:
 
 3. object: returns the number of key-value pairs in the object
 
-| Given                          | Expression            | Result                  |
-| ------------------------------ | --------------------- | ----------------------- |
-| n/a                            | `` length(`"abc"`) `` | 3                       |
-| "current"                      | `length(@)`           | 7                       |
-| "current"                      | `length(not_there)`   | `<error: invalid-type>` |
-| `["a", "b", "c"]`              | `length(@)`           | 3                       |
-| `[]`                           | `length(@)`           | 0                       |
-| `{}`                           | `length(@)`           | 0                       |
-| `{"foo": "bar", "baz": "bam"}` | `length(@)`           | 2                       |
+| Given                          | Expression          | Result                  |
+| ------------------------------ | ------------------- | ----------------------- |
+| n/a                            | ``length(`"abc"`)`` | 3                       |
+| "current"                      | `length(@)`         | 7                       |
+| "current"                      | `length(not_there)` | `<error: invalid-type>` |
+| `["a", "b", "c"]`              | `length(@)`         | 3                       |
+| `[]`                           | `length(@)`         | 0                       |
+| `{}`                           | `length(@)`         | 0                       |
+| `{"foo": "bar", "baz": "bam"}` | `length(@)`         | 2                       |
 
 ### max
 
@@ -454,9 +453,9 @@ string to_string(string|number|array|object|boolean $arg)
   encoder should emit the encoded JSON value without adding any additional new
   lines.
 
-| Given  | Expression           | Result |
-| ------ | -------------------- | ------ |
-| `null` | `` to_string(`2`) `` | `"2"`  |
+| Given  | Expression         | Result |
+| ------ | ------------------ | ------ |
+| `null` | ``to_string(`2`)`` | `"2"`  |
 
 ### to_number
 
