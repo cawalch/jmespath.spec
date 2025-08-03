@@ -1,102 +1,144 @@
-# String Functions
-
-|||
-|---|---
-| **JEP**    |  14
-| **Author** | Maxime Labelle, Chris Armstrong (GorillaStack), Richard Gibson
-| **Created**| 13-October-2022
-| **SemVer** | MINOR
-| **Status**| accepted
+---
+title: String Functions
+nav_label: strings
+author: Maxime Labelle, Chris Armstrong (GorillaStack), Richard Gibson
+created: 13-October-2022
+semver: MINOR
+status: accepted
+parent: 3a
+id: 14
+---
 
 ## Abstract
 
-This JEP introduces a core set of useful string manipulation functions. Those functions are modeled from functions found in popular programming languages such as JavaScript and Python.
+This JEP introduces a core set of useful string manipulation functions. These
+functions are modeled after functions found in popular programming languages
+such as JavaScript and Python.
 
 ## Specification
 
-Some string manipulation functions bring the new concept of _optional arguments_ to JMESPath functions. The specification paragraph on function evaluation must thus be changed accordingly – highlighted in **bold** in the text below:
+Some string manipulation functions introduce the new concept of _optional
+arguments_ to JMESPath functions. The specification paragraph on function
+evaluation must be changed accordingly – highlighted in **bold** in the text
+below:
 
-_Functions can ~~either~~ have a specific arity, **a range of valid – minimum and maximum – number of arguments** or be variadic with a minimum number of arguments. If a function-expression is encountered where the arity does not match or the minimum number of arguments for a variadic function is not provided, then implementations must indicate to the caller that an invalid-arity error occurred. How and when this error is raised is implementation specific._
+_Functions can have a specific arity, **a range of valid – minimum and maximum –
+number of arguments** or be variadic with a minimum number of arguments. If a
+function-expression is encountered where the arity does not match or the minimum
+number of arguments for a variadic function is not provided, then
+implementations must indicate to the caller that an invalid-arity error
+occurred. How and when this error is raised is implementation specific._
 
-Some functions accept number arguments which are further constrained to integers or even non-negative integers. This JEP specifies a new error
-type `invalid-value` by updating the paragraph on type constraints from the specification like so:
+Some functions accept number arguments which are further constrained to integers
+or even non-negative integers. This JEP specifies a new error type
+`invalid-value` by updating the paragraph on type constraints from the
+specification:
 
-_Each function signature declares the types of its input parameters. If any type constraints are not met, implementations must indicate that an `invalid-type` error occurred. **If a function parameter accepts values constrained to a specific subset of a type and those constraints are not met, implementations must report that an `invalid-value` error occurred. How and when those errors are raised is implementation specific.**_
+_Each function signature declares the types of its input parameters. If any type
+constraints are not met, implementations must indicate that an `invalid-type`
+error occurred. **If a function parameter accepts values constrained to a
+specific subset of a type and those constraints are not met, implementations
+must report that an `invalid-value` error occurred. How and when those errors
+are raised is implementation specific.**_
 
 ### find_first
 
 ```
 int find_first(string $subject, string $sub[, int $start[, int $end]])
 ```
-Given the `$subject` string, `find_first()` returns the zero-based index of the first occurrence where the `$sub` substring appears in `$subject` or `null` if it does not appear. If either the `$subject` or the `$sub` argument is an empty string, `find_first()` returns `null`.
 
-The `$start` and `$end` parameters are optional and allow restricting to the slice `[$start:$end]` the range within `$subject` in which `$sub` must be found.
+Given the `$subject` string, `find_first()` returns the zero-based index of the
+first occurrence where the `$sub` substring appears in `$subject` or `null` if
+it does not appear. If either the `$subject` or the `$sub` argument is an empty
+string, `find_first()` returns `null`.
 
-- If `$start` is omitted, it defaults to `0` (which is the start of the `$subject` string).
-- If `$end` is omitted, it defaults to `length(subject)` (which is past the end of the `$subject` string).
+The `$start` and `$end` parameters are optional and allow restricting the range
+within `$subject` to the slice `[$start:$end]` in which `$sub` must be found.
 
-If not omitted, the `$start` or `$end` arguments are expected to be integers. Otherwise, an error MUST be raised.
+- If `$start` is omitted, it defaults to `0` (which is the start of the
+  `$subject` string).
+- If `$end` is omitted, it defaults to `length(subject)` (which is past the end
+  of the `$subject` string).
 
-Contrary to similar functions found in most popular programming languages, the `find_first()` function does not return `-1` if no occurrence of the substring can be found. Instead, it returns `null` for consistency reasons with how JMESPath behaves.
+If not omitted, the `$start` or `$end` arguments are expected to be integers.
+Otherwise, an error MUST be raised.
+
+Contrary to similar functions found in most popular programming languages, the
+`find_first()` function does not return `-1` if no occurrence of the substring
+can be found. Instead, it returns `null` for consistency with how JMESPath
+behaves.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"subject string"` | `` find_first(@, 'string') `` |  `8`
-| `"subject string"` | `` find_first(@, 'string', `0`) `` |  `8`
-| `"subject string"` | `` find_first(@, 'string', `0`, `14`) `` |  `8`
-| `"subject string"` | `` find_first(@, 'string', `-99`, `100`) `` |  `8`
-| `"subject string"` | `` find_first(@, 'string', `-6`) `` |  `8`
-| `"subject string"` | `` find_first(@, 'string', `0`, `13`) `` |  `null`
-| `"subject string"` | `` find_first(@, 'string', `8`) `` |  `8`
-| `"subject string"` | `` find_first(@, 'string', `8`, `11`) `` |  `null`
-| `"subject string"` | `` find_first(@, 'string', `9`) `` |  `null`
-| `"subject string"` | `` find_first(@, 's') `` |  `0`
-| `"subject string"` | `` find_first(@, 's', `1`) `` |  `8`
-| `"subject string"` | `` find_first(@, '') `` |  `null`
+| Given              | Expression                                | Result |
+| ------------------ | ----------------------------------------- | ------ |
+| `"subject string"` | `find_first(@, 'string')`                 | `8`    |
+| `"subject string"` | ``find_first(@, 'string', `0`)``          | `8`    |
+| `"subject string"` | ``find_first(@, 'string', `0`, `14`)``    | `8`    |
+| `"subject string"` | ``find_first(@, 'string', `-99`, `100`)`` | `8`    |
+| `"subject string"` | ``find_first(@, 'string', `-6`)``         | `8`    |
+| `"subject string"` | ``find_first(@, 'string', `0`, `13`)``    | `null` |
+| `"subject string"` | ``find_first(@, 'string', `8`)``          | `8`    |
+| `"subject string"` | ``find_first(@, 'string', `8`, `11`)``    | `null` |
+| `"subject string"` | ``find_first(@, 'string', `9`)``          | `null` |
+| `"subject string"` | `find_first(@, 's')`                      | `0`    |
+| `"subject string"` | ``find_first(@, 's', `1`)``               | `8`    |
+| `"subject string"` | `find_first(@, '')`                       | `null` |
 
 ### find_last
 
 ```
 int find_last(string $subject, string $sub[, int $start[, int $end]])
 ```
-Given the `$subject` string, `find_last()` returns the zero-based index of the last occurrence where the `$sub` substring appears in `$subject` or `null` if it does not appear. If either the `$subject` or the `$sub` argument is an empty string, `find_last()` returns `null`.
 
-The `$start` and `$end` parameters are optional and allow restricting to the slice `[$start:$end]` the range within `$subject` in which `$sub` must be found.
+Given the `$subject` string, `find_last()` returns the zero-based index of the
+last occurrence where the `$sub` substring appears in `$subject` or `null` if it
+does not appear. If either the `$subject` or the `$sub` argument is an empty
+string, `find_last()` returns `null`.
 
-- If `$start` is omitted, it defaults to `0` (which is the start of the `$subject` string).
-- If `$end` is omitted, it defaults to `length(subject)` (which is past the end of the `$subject` string).
+The `$start` and `$end` parameters are optional and allow restricting the range
+within `$subject` to the slice `[$start:$end]` in which `$sub` must be found.
 
-If not omitted, the `$start` or `$end` arguments are expected to be integers. Otherwise, an error MUST be raised.
+- If `$start` is omitted, it defaults to `0` (which is the start of the
+  `$subject` string).
+- If `$end` is omitted, it defaults to `length(subject)` (which is past the end
+  of the `$subject` string).
 
-Contrary to similar functions found in most popular programming languages, the `find_last()` function does not return `-1` if no occurrence of the substring can be found. Instead, it returns `null` for consistency reasons with how JMESPath behaves.
+If not omitted, the `$start` or `$end` arguments are expected to be integers.
+Otherwise, an error MUST be raised.
+
+Contrary to similar functions found in most popular programming languages, the
+`find_last()` function does not return `-1` if no occurrence of the substring
+can be found. Instead, it returns `null` for consistency with how JMESPath
+behaves.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"subject string"` | `` find_last(@, 'string') `` |  `8`
-| `"subject string"` | `` find_last(@, 'string', `8`) `` |  `8`
-| `"subject string"` | `` find_last(@, 'string', `8`, `9`) `` |  `null`
-| `"subject string"` | `` find_last(@, 'string', `9`) `` |  `null`
-| `"subject string"` | `` find_last(@, 's') `` |  `8`
-| `"subject string"` | `` find_last(@, 's', `1`) `` |  `8`
-| `"subject string"` | `` find_last(@, 's', `0`, `7`) `` |  `0`
-| `"subject string"` | `` find_last(@, '') `` |  `null`
+| Given              | Expression                           | Result |
+| ------------------ | ------------------------------------ | ------ |
+| `"subject string"` | `find_last(@, 'string')`             | `8`    |
+| `"subject string"` | ``find_last(@, 'string', `8`)``      | `8`    |
+| `"subject string"` | ``find_last(@, 'string', `8`, `9`)`` | `null` |
+| `"subject string"` | ``find_last(@, 'string', `9`)``      | `null` |
+| `"subject string"` | `find_last(@, 's')`                  | `8`    |
+| `"subject string"` | ``find_last(@, 's', `1`)``           | `8`    |
+| `"subject string"` | ``find_last(@, 's', `0`, `7`)``      | `0`    |
+| `"subject string"` | `find_last(@, '')`                   | `null` |
 
 ### lower
 
 ```
 string lower(string $subject)
 ```
-Returns the lowercase `$subject` string using Unicode default casing conversion specification.
+
+Returns the lowercase `$subject` string using Unicode default casing conversion
+specification.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"STRING"` | `` lower(@) `` |  `"string"`
+| Given      | Expression | Result     |
+| ---------- | ---------- | ---------- |
+| `"STRING"` | `lower(@)` | `"string"` |
 
 ### pad_left
 
@@ -104,24 +146,26 @@ Returns the lowercase `$subject` string using Unicode default casing conversion 
 string pad_left(string $subject, number $width[, string $pad])
 ```
 
-Given the `$subject` string, `pad_left()` adds characters to the beginning and returns a string of length at least `$width`.
+Given the `$subject` string, `pad_left()` adds characters to the beginning and
+returns a string of length at least `$width`.
 
-The `$pad` optional string parameter specifies the padding character.
-If omitted, it defaults to an ASCII space (U+0020).
-If present, it MUST have length 1, otherwise an error MUST be raised.
+The `$pad` optional string parameter specifies the padding character. If
+omitted, it defaults to an ASCII space (U+0020). If present, it MUST have length
+1, otherwise an error MUST be raised.
 
-If the `$subject` string has length greater than or equal to `$width`, it is returned unmodified.
+If the `$subject` string has length greater than or equal to `$width`, it is
+returned unmodified.
 
 If `$width` is not an integer or is negative, an error MUST be raised.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"string"` | `` pad_left(@, `0`) `` |  `"string"`
-| `"string"` | `` pad_left(@, `5`) `` |  `"string"`
-| `"string"` | `` pad_left(@, `10`) `` |  `"    string"`
-| `"string"` | `` pad_left(@, `10`, '-') `` |  `"----string"`
+| Given      | Expression                 | Result         |
+| ---------- | -------------------------- | -------------- |
+| `"string"` | ``pad_left(@, `0`)``       | `"string"`     |
+| `"string"` | ``pad_left(@, `5`)``       | `"string"`     |
+| `"string"` | ``pad_left(@, `10`)``      | `"    string"` |
+| `"string"` | ``pad_left(@, `10`, '-')`` | `"----string"` |
 
 ### pad_right
 
@@ -129,45 +173,52 @@ If `$width` is not an integer or is negative, an error MUST be raised.
 string pad_right(string $subject, number $width[, string $pad])
 ```
 
-Given the `$subject` string, `pad_right()` adds characters to the end and returns a string of length at least `$width`.
+Given the `$subject` string, `pad_right()` adds characters to the end and
+returns a string of length at least `$width`.
 
-The `$pad` optional string parameter specifies the padding character.
-If omitted, it defaults to an ASCII space (U+0020).
-If present, it MUST have length 1, otherwise an error MUST be raised.
+The `$pad` optional string parameter specifies the padding character. If
+omitted, it defaults to an ASCII space (U+0020). If present, it MUST have length
+1, otherwise an error MUST be raised.
 
-If the `$subject` string has length greater than or equal to `$width`, it is returned unmodified.
+If the `$subject` string has length greater than or equal to `$width`, it is
+returned unmodified.
 
 If `$width` is not an integer or is negative, an error MUST be raised.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"string"` | `` pad_right(@, `0`) `` |  `"string"`
-| `"string"` | `` pad_right(@, `5`) `` |  `"string"`
-| `"string"` | `` pad_right(@, `10`) `` |  `"string    "`
-| `"string"` | `` pad_right(@, `10`, '-') `` |  `"string----"`
+| Given      | Expression                  | Result         |
+| ---------- | --------------------------- | -------------- |
+| `"string"` | ``pad_right(@, `0`)``       | `"string"`     |
+| `"string"` | ``pad_right(@, `5`)``       | `"string"`     |
+| `"string"` | ``pad_right(@, `10`)``      | `"string    "` |
+| `"string"` | ``pad_right(@, `10`, '-')`` | `"string----"` |
 
 ### replace
 
 ```
 string replace(string $subject, string $old, string $new[, number $count])
 ```
-Given the `$subject` string, `replace()` replaces occurrences of the `$old` substring with the `$new` substring.
 
-The `$count` optional integer specifies how many occurrences of the `$old` substring in `$subject` are replaced. If this parameter is omitted, all occurrences are replaced. If `$count` is not an integer or is negative, an error MUST be raised.
+Given the `$subject` string, `replace()` replaces occurrences of the `$old`
+substring with the `$new` substring.
+
+The `$count` optional integer specifies how many occurrences of the `$old`
+substring in `$subject` are replaced. If this parameter is omitted, all
+occurrences are replaced. If `$count` is not an integer or is negative, an error
+MUST be raised.
 
 The `replace()` function has no effect if `$count` is `0`.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"aabaaabaaaab"` | `` replace(@, 'aa', '-', `0`) `` |  `"aabaaabaaaab"`
-| `"aabaaabaaaab"` | `` replace(@, 'aa', '-', `1`) `` |  `"-baaabaaaab"`
-| `"aabaaabaaaab"` | `` replace(@, 'aa', '-', `2`) `` |  `"-b-abaaaab"`
-| `"aabaaabaaaab"` | `` replace(@, 'aa', '-', `3`) `` |  `"-b-ab-aab"`
-| `"aabaaabaaaab"` | `` replace(@, 'aa', '-') `` |  `"-b-ab--b"`
+| Given            | Expression                     | Result           |
+| ---------------- | ------------------------------ | ---------------- |
+| `"aabaaabaaaab"` | ``replace(@, 'aa', '-', `0`)`` | `"aabaaabaaaab"` |
+| `"aabaaabaaaab"` | ``replace(@, 'aa', '-', `1`)`` | `"-baaabaaaab"`  |
+| `"aabaaabaaaab"` | ``replace(@, 'aa', '-', `2`)`` | `"-b-abaaaab"`   |
+| `"aabaaabaaaab"` | ``replace(@, 'aa', '-', `3`)`` | `"-b-ab-aab"`    |
+| `"aabaaabaaaab"` | `replace(@, 'aa', '-')`        | `"-b-ab--b"`     |
 
 ### split
 
@@ -175,112 +226,143 @@ The `replace()` function has no effect if `$count` is `0`.
 array[string] split(string $subject, string $search[, number $count])
 ```
 
-Given the `$subject` string, `split()` breaks on occurrences of the string `$search` and returns an array.
+Given the `$subject` string, `split()` breaks on occurrences of the string
+`$search` and returns an array.
 
-The `split()` function returns an array containing each partial string between occurrences of `$search`. If `$subject` contains no occurrences of the `$search` string, an array containing just the original `$subject` string will be returned.
+The `split()` function returns an array containing each partial string between
+occurrences of `$search`. If `$subject` contains no occurrences of the `$search`
+string, an array containing just the original `$subject` string will be
+returned.
 
-If the `$search` argument is an empty string, `split()` breaks on every character and returns an array containing each character from the `$subject` string. Thus, if `$subject` is _also_ an empty string, `split()` returns an empty array.
+If the `$search` argument is an empty string, `split()` breaks on every
+character and returns an array containing each character from the `$subject`
+string. Thus, if `$subject` is _also_ an empty string, `split()` returns an
+empty array.
 
-The `$count` optional integer specifies the maximum number of split points within the `$search` string.
-If this parameter is omitted, all occurrences are split. If `$count` is not an integer or is negative, an error MUST be raised.
+The `$count` optional integer specifies the maximum number of split points
+within the `$search` string. If this parameter is omitted, all occurrences are
+split. If `$count` is not an integer or is negative, an error MUST be raised.
 
-If `$count` is equal to `0`, `split()` returns an array containing a single element, the `$subject` string.
+If `$count` is equal to `0`, `split()` returns an array containing a single
+element, the `$subject` string.
 
-Otherwise, the `split()` function breaks on occurrences of the `$search` string up to `$count` times. The last string in the resulting array containing the remaining contents of `$subject` unmodified.
+Otherwise, the `split()` function breaks on occurrences of the `$search` string
+up to `$count` times. The last string in the resulting array contains the
+remaining contents of `$subject` unmodified.
 
-**Note**: The `split()` function was [originally designed by Chris Armstrong](https://github.com/GorillaStack/jmespath.site/blob/master/docs/proposals/string-manipulation.rst). However, its behavior has been slightly altered for consistency reasons.
+**Note**: The `split()` function was
+[originally designed by Chris Armstrong](https://github.com/GorillaStack/jmespath.site/blob/master/docs/proposals/string-manipulation.rst).
+However, its behavior has been slightly altered for consistency reasons.
 
 ### Examples
 
-| Expression | Result
-|---|---
-| `split('', '')` | `[]`
-| `split('all chars', '')` | `[ "a", "l", "l", " ", "c", "h", "a", "r", "s" ]`
-| `split('/', '/')` | `[ "", "" ]` |
-|`` split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|') `` | `[ "average", "min", "max", "mean", "median" ]` 
-|`` split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `3`) `` | `[ "average", "min", "max", "mean\|-\|median" ]`
-|`` split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `2`) `` | `[ "average", "min", "max\|-\|mean\|-\|median" ]`
-|`` split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `1`) `` | `[ "average", "min\|-\|max\|-\|mean\|-\|median" ]`
-|`` split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `0`) `` | `[ "average\|-\|min\|-\|max\|-\|mean\|-\|median" ]`
-| `split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '-')` | `[ "average\|", "\|min\|", "\|max\|", "\|mean\|", "\|median" ]`
-
-## Specification
+| Expression                                                             | Result                                                          |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `split('', '')`                                                        | `[]`                                                            |
+| `split('all chars', '')`                                               | `[ "a", "l", "l", " ", "c", "h", "a", "r", "s" ]`               |
+| `split('/', '/')`                                                      | `[ "", "" ]`                                                    |
+| `split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|')`        | `[ "average", "min", "max", "mean", "median" ]`                 |
+| ``split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `3`)`` | `[ "average", "min", "max", "mean\|-\|median" ]`                |
+| ``split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `2`)`` | `[ "average", "min", "max\|-\|mean\|-\|median" ]`               |
+| ``split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `1`)`` | `[ "average", "min\|-\|max\|-\|mean\|-\|median" ]`              |
+| ``split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '\|-\|', `0`)`` | `[ "average\|-\|min\|-\|max\|-\|mean\|-\|median" ]`             |
+| `split('average\|-\|min\|-\|max\|-\|mean\|-\|median', '-')`            | `[ "average\|", "\|min\|", "\|max\|", "\|mean\|", "\|median" ]` |
 
 ### trim
 
 ```
 string trim(string $subject[, string $chars])
 ```
-Given the `$subject` string, `trim()` removes the leading and trailing characters found in `$chars`.
 
-The `$chars` optional string parameter represents a set of characters to be removed. If this parameter is not specified, or is an empty string, whitespace characters are removed from the `$subject` string. Whitespaces are defined by the Unicode standard as codepoints having the `White_Space` property set to `Yes`.
+Given the `$subject` string, `trim()` removes the leading and trailing
+characters found in `$chars`.
+
+The `$chars` optional string parameter represents a set of characters to be
+removed. If this parameter is not specified, or is an empty string, whitespace
+characters are removed from the `$subject` string. Whitespaces are defined by
+the Unicode standard as codepoints having the `White_Space` property set to
+`Yes`.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"   subject string   "` | `` trim(@) `` |  `"subject string"`
-| `"   subject string   "` | `` trim(@, '') `` |  `"subject string"`
-| `"   subject string   "` | `` trim(@, ' ') `` |  `"subject string"`
-| `"   subject string   "` | `` trim(@, 's') `` |  `"   subject string   "`
-| `"   subject string   "` | `` trim(@, 'su') `` |  `"   subject string   "`
-| `"   subject string   "` | `` trim(@, 'su ') `` |  `"bject string"`
-| `"   subject string   "` | `` trim(@, 'gsu ') `` |  `"bject strin"`
+| Given                    | Expression        | Result                   |
+| ------------------------ | ----------------- | ------------------------ |
+| `"   subject string   "` | `trim(@)`         | `"subject string"`       |
+| `"   subject string   "` | `trim(@, '')`     | `"subject string"`       |
+| `"   subject string   "` | `trim(@, ' ')`    | `"subject string"`       |
+| `"   subject string   "` | `trim(@, 's')`    | `"   subject string   "` |
+| `"   subject string   "` | `trim(@, 'su')`   | `"   subject string   "` |
+| `"   subject string   "` | `trim(@, 'su ')`  | `"bject string"`         |
+| `"   subject string   "` | `trim(@, 'gsu ')` | `"bject strin"`          |
 
 ### trim_left
 
 ```
 string trim_left(string $subject[, string $chars])
 ```
-Given the `$subject` string, `trim_left()` removes the leading characters found in `$chars`.
 
-Like for the `trim()` function, the `$chars` optional string parameter represents a set of characters to be removed. `trim_left()` defaults to removing whitespace characters if `$chars` is not specified or is an empty string.
+Given the `$subject` string, `trim_left()` removes the leading characters found
+in `$chars`.
+
+Like the `trim()` function, the `$chars` optional string parameter represents a
+set of characters to be removed. `trim_left()` defaults to removing whitespace
+characters if `$chars` is not specified or is an empty string.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"   subject string   "` | `` trim_left(@) `` |  `"subject string   "`
-| `"   subject string   "` | `` trim_left(@, 's') `` |  `"   subject string   "`
-| `"   subject string   "` | `` trim_left(@, 'su') `` |  `"   subject string   "`
-| `"   subject string   "` | `` trim_left(@, 'su ') `` |  `"bject string   "`
-| `"   subject string   "` | `` trim_left(@, 'gsu ') `` |  `"bject string   "`
+| Given                    | Expression             | Result                   |
+| ------------------------ | ---------------------- | ------------------------ |
+| `"   subject string   "` | `trim_left(@)`         | `"subject string   "`    |
+| `"   subject string   "` | `trim_left(@, 's')`    | `"   subject string   "` |
+| `"   subject string   "` | `trim_left(@, 'su')`   | `"   subject string   "` |
+| `"   subject string   "` | `trim_left(@, 'su ')`  | `"bject string   "`      |
+| `"   subject string   "` | `trim_left(@, 'gsu ')` | `"bject string   "`      |
 
 ### trim_right
 
 ```
 string trim_right(string $subject[, string $chars])
 ```
-Given the `$subject` string, `trim_right()` removes the trailing characters found in `$chars`.
 
-Like for the `trim()` and `trim_left()` functions, the `$chars` optional string parameter represents a set of characters to be removed. `trim_right()` defaults to removing whitespace characters if `$chars` is not specified or is an empty string.
+Given the `$subject` string, `trim_right()` removes the trailing characters
+found in `$chars`.
+
+Like the `trim()` and `trim_left()` functions, the `$chars` optional string
+parameter represents a set of characters to be removed. `trim_right()` defaults
+to removing whitespace characters if `$chars` is not specified or is an empty
+string.
 
 ### Examples
 
-| Given | Expression | Result
-|---|---|---
-| `"   subject string   "` | `` trim_right(@) `` |  `"   subject string"`
-| `"   subject string   "` | `` trim_right(@, 's') `` |  `"   subject string   "`
-| `"   subject string   "` | `` trim_right(@, 'su') `` |  `"   subject string   "`
-| `"   subject string   "` | `` trim_right(@, 'su ') `` |  `"   subject string"`
-| `"   subject string   "` | `` trim_right(@, 'gsu ') `` |  `"   subject strin"`
+| Given                    | Expression              | Result                   |
+| ------------------------ | ----------------------- | ------------------------ |
+| `"   subject string   "` | `trim_right(@)`         | `"   subject string"`    |
+| `"   subject string   "` | `trim_right(@, 's')`    | `"   subject string   "` |
+| `"   subject string   "` | `trim_right(@, 'su')`   | `"   subject string   "` |
+| `"   subject string   "` | `trim_right(@, 'su ')`  | `"   subject string"`    |
+| `"   subject string   "` | `trim_right(@, 'gsu ')` | `"   subject strin"`     |
 
 ### upper
 
 ```
 string upper(string $subject)
 ```
-Returns the uppercase `$subject` string using Unicode default casing conversion specification.
 
-| Given | Expression | Result
-|---|---|---
-| `"string"` | `` upper(@) `` |  `"STRING"`
+Returns the uppercase `$subject` string using Unicode default casing conversion
+specification.
+
+### Examples
+
+| Given      | Expression | Result     |
+| ---------- | ---------- | ---------- |
+| `"string"` | `upper(@)` | `"STRING"` |
 
 ## Compliance
 
-A new `string_functions.json` file will be added to the compliance tests.
-The test suite will introduce the following new error type:
+A new `string_functions.json` file will be added to the compliance tests. The
+test suite will introduce the following new error type:
 
 - invalid-value
 
-This error type would be raised by `split()` for instance, if its `$count` parameter is negative or not an integer.
+This error type would be raised by `split()` for instance, if its `$count`
+parameter is negative or not an integer.
