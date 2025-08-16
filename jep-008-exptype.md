@@ -1,26 +1,25 @@
-# Expression Types
+---
+title: Expression Types
+jep: 8
+author: James Saryerwinnie
+status: accepted
+created: 2013-03-02
+---
 
-|||
-|---|---
-| **JEP**    | 8
-| **Author** | James Saryerwinnie
-| **Status** | accepted
-| **Created**| 02-Mar-2013
+# Expression Types
 
 ## Abstract
 
-This JEP proposes grammar modifications to JMESPath to allow for
-expression references within functions.  This allows for functions
-such as `sort_by`, `max_by`, `min_by`.  These functions take
-an argument that resolves to an expression type.  This enables
-functionality such as sorting an array based on an expression that
-is evaluated against every array element.
+This JEP proposes grammar modifications to JMESPath to support expression
+references within functions. These references enable functions like `sort_by`,
+`max_by`, and `min_by` that accept expressions as arguments. This allows
+operations such as sorting arrays based on dynamically evaluated expressions
+applied to each element.
 
 ## Motivation
 
-A useful feature that is common in other expression languages is the
-ability to sort a JSON object based on a particular key.  For example,
-given a JSON object:
+A common requirement in expression languages is sorting JSON objects by specific
+keys. Consider this example data:
 
 ```
 {
@@ -34,53 +33,51 @@ given a JSON object:
 }
 ```
 
-It is not currently possible to sort the `people` array by the `age` key.
-Also, `sort` is not defined for the `object` type, so it’s not currently
-possible to even sort the `people` array.  In order to sort the `people`
-array, we need to know what key to use when sorting the array.
+Currently, JMESPath cannot sort the `people` array by the `age` key.
+Additionally, the `sort` function isn't defined for objects, making array
+sorting impossible without specifying a sort key.
 
-This concept of sorting based on a key can be generalized.  Instead of
-requiring a key name, an expression can be provided that each element
-would be evaluated against.  In the simplest case, this expression would just
-be an `identifier`, but more complex expressions could be used such as
-`foo.bar.baz`.
+This limitation extends beyond sorting. The concept can be generalized: instead
+of requiring a specific key name, functions should accept expressions evaluated
+against each array element. While simplest cases use identifiers (e.g., `age`),
+more complex expressions like `foo.bar.baz` should also work.
 
-A simple way to accomplish this might be to create a function like this:
+A naive implementation might define:
 
 ```
 sort_by(array arg1, expression)
+```
 
-# Called like:
+Called as:
 
+```
 sort_by(people, age)
 sort_by(people, to_number(age_str))
 ```
 
-However, there’s a problem with the `sort_by` function as defined above.
-If we follow the function argument resolution process we get:
+However, this approach fails due to standard argument resolution:
 
 ```
 sort_by(people, age)
 
-# 1. resolve people
-arg1 = search(people, <input data>) -> [{"age": ...}, {...}]
+# 1. Resolve people
+arg1 = search(people, <input data>) → [{"age": ...}, {...}]
 
-# 2. resolve age
-arg2 = search(age, <input data>) -> null
+# 2. Resolve age
+arg2 = search(age, <input data>) → null
 
 sort_by([{"age": ...}, {...}], null)
 ```
 
-The second argument is evaluated against the current node and the expression
-`age` will resolve to `null` because the input data has no `age` key.
-There needs to be some way to specify that an expression should evaluate to
-an expression type:
+The second argument evaluates against the current node, and `age` resolves to
+`null` since the root object lacks an `age` key. We need a mechanism to specify
+that an argument should represent an unevaluated expression:
 
 ```
-arg = search(<some expression>, <input data>) -> <expression: age>
+arg = search(<some expression>, <input data>) → <expression: age>
 ```
 
-Then the function definition of `sort_by` would be:
+The correct function definition would then be:
 
 ```
 sort_by(array arg1, expression arg2)
@@ -88,7 +85,7 @@ sort_by(array arg1, expression arg2)
 
 ## Specification
 
-The following grammar rules will be updated to:
+The grammar rule for function arguments will be updated to:
 
 ```
 function-arg        = expression /
@@ -96,38 +93,23 @@ function-arg        = expression /
                       "&" expression
 ```
 
-Evaluating an expression reference should return an object of type
-“expression”.  The list of data types supported by a function will now be:
+Evaluating an expression reference (prefixed with `&`) returns an object of type
+"expression" rather than evaluating the expression immediately. JMESPath data
+types now include:
 
+- number (integers and double-precision floating-point values)
+- string
+- boolean (`true` or `false`)
+- array (ordered sequence of values)
+- object (unordered collection of key-value pairs)
+- null
+- expression (denoted by `&expression`)
 
-* number (integers and double-precision floating-point format in JSON)
+Function signatures can specify the `expression` type. Similar to how
+`array[type]` specifies array element types, `expression->type` specifies the
+expected return type of the expression.
 
-
-* string
-
-
-* boolean (`true` or `false`)
-
-
-* array (an ordered, sequence of values)
-
-
-* object (an unordered collection of key value pairs)
-
-
-* null
-
-
-* expression (denoted by `&expression`)
-
-Function signatures can now be specified using this new `expression` type.
-Additionally, a function signature can specify the return type of the
-expression.  Similarly how arrays can specify a type within a list using the
-`array[type]` syntax, expressions can specify their resolved type using
-`expression->type` syntax.
-
-Note that any valid expression is allowed after `&`, so the following
-expressions are valid:
+Any valid expression can follow the `&` prefix:
 
 ```
 sort_by(people, &foo.bar.baz)
@@ -137,129 +119,103 @@ sort_by(people, &to_number(foo[0].bar))
 
 ### Additional Functions
 
-The following functions will be added:
-
 #### sort_by
 
 ```
 sort_by(array elements, expression->number|expression->string expr)
 ```
 
-Sort an array using an expression `expr` as the sort key.
-Below are several examples using the `people` array (defined above) as the
-given input.  `sort_by` follows the same sorting logic as the `sort`
-function.
+Sorts an array using `expr` as the sort key. Follows the same sorting logic as
+the `sort` function.
 
-#### Examples
+| Expression                                | Result                                                |
+| ----------------------------------------- | ----------------------------------------------------- |
+| `sort_by(people, &age)[].age`             | [10, 20, 30, 40, 50]                                  |
+| `sort_by(people, &age)[0]`                | {"age": 10, "age_str": "10", "bool": true, "name": 3} |
+| `sort_by(people, &to_number(age_str))[0]` | {"age": 10, "age_str": "10", "bool": true, "name": 3} |
 
-| Expression | Result
-|---|---|
-| `sort_by(people, &age)[].age` | [10, 20, 30, 40, 50]
-| `sort_by(people, &age)[0]` | {"age": 10, "age_str": "10", "bool": true, "name": 3}
-| `sort_by(people, &to_number(age_str))[0]` | {"age": 10, "age_str": "10", "bool": true, "name": 3}
 #### max_by
 
 ```
 max_by(array elements, expression->number expr)
 ```
 
-Return the maximum element in an array using the expression `expr` as the
-comparison key.  The entire maximum element is returned.
-Below are several examples using the `people` array (defined above) as the
-given input.
+Returns the maximum element in an array using `expr` as the comparison key. The
+entire element is returned.
 
-#### Examples
+| Expression                            | Result                                                   |
+| ------------------------------------- | -------------------------------------------------------- |
+| `max_by(people, &age)`                | {"age": 50, "age_str": "50", "bool": false, "name": "d"} |
+| `max_by(people, &age).age`            | 50                                                       |
+| `max_by(people, &to_number(age_str))` | {"age": 50, "age_str": "50", "bool": false, "name": "d"} |
+| `max_by(people, &age_str)`            | <error: invalid-type>                                    |
+| `max_by(people, age)`                 | <error: invalid-type>                                    |
 
-| Expression | Result
-|---|---|
-| `max_by(people, &age)` | {"age": 50, "age_str": "50", "bool": false, "name": "d"}
-| `max_by(people, &age).age` | 50
-| `max_by(people, &to_number(age_str))` | {"age": 50, "age_str": "50", "bool": false, "name": "d"},
-| `max_by(people, &age_str)` | <error: invalid-type>
-| `max_by(people, age)` | <error: invalid-type>
 #### min_by
 
 ```
 min_by(array elements, expression->number expr)
 ```
 
-Return the minimum element in an array using the expression `expr` as the
-comparison key.  The entire maximum element is returned.
-Below are several examples using the `people` array (defined above) as the
-given input.
+Returns the minimum element in an array using `expr` as the comparison key.
 
-#### Examples
+| Expression                            | Result                                                |
+| ------------------------------------- | ----------------------------------------------------- |
+| `min_by(people, &age)`                | {"age": 10, "age_str": "10", "bool": true, "name": 3} |
+| `min_by(people, &age).age`            | 10                                                    |
+| `min_by(people, &to_number(age_str))` | {"age": 10, "age_str": "10", "bool": true, "name": 3} |
+| `min_by(people, &age_str)`            | <error: invalid-type>                                 |
+| `min_by(people, age)`                 | <error: invalid-type>                                 |
 
-| Expression | Result |
-|---|---
-| `min_by(people, &age)` | {"age": 10, "age_str": "10", "bool": true, "name": 3}
-| `min_by(people, &age).age` | 10
-| `min_by(people, &to_number(age_str))` | {"age": 10, "age_str": "10", "bool": true, "name": 3}
-| `min_by(people, &age_str)` | <error: invalid-type>
-| `min_by(people, age)` | <error: invalid-type>
+## Alternatives
 
-### Alternatives
-
-There were a number of alternative proposals considered.  Below outlines several of these alternatives.
+Several alternative approaches were considered:
 
 #### Logic in Argument Resolver
 
-The first proposed choice (which was originally in JEP-3 but later removed) was
-to not have any syntactic construct for specifying functions, and to allow the
-function signature to dictate whether or not an argument was resolved.  The
-signature for `sort_by` would be:
+An earlier proposal (originally in JEP-3 but later removed) suggested no
+syntactic construct for expression references. Instead, function signatures
+would dictate argument resolution:
 
 ```
 sort_by(array arg1, any arg2)
-arg1 -> resolved
-arg2 -> not resolved
+arg1 → resolved
+arg2 → not resolved
 ```
 
-Then the argument resolver would introspect the argument specification of a
-function to determine what to do.  Roughly speaking, the pseudocode would be:
+The argument resolver would inspect function specifications:
 
 ```
 call-function(current-data)
 arglist = []
 for each argspec in functions-argspec:
-    if argspect.should_resolve:
-      arglist <- resolve(argument, current-data)
+    if argspec.should_resolve:
+      arglist ← resolve(argument, current-data)
     else
-      arglist <- argument
+      arglist ← argument
 type-check(arglist)
 return invoke-function(arglist)
 ```
 
-However, there are several reasons not to do this:
+This approach was rejected for several reasons:
 
-
-* This imposes a specific implementation.  This implementation would be
-challenging in a bytecode VM, as the CALL bytecode will typically
-resolve arguments onto the stack and allow the function to then
-pop arguments off the stack and perform its own arity validation.
-
-
-* This deviates from the “standard” model of how functions are
-traditionally implemented.
+- It imposes specific implementation constraints
+- It would be challenging to implement in a bytecode VM, where CALL instructions
+  typically resolve arguments onto the stack before function invocation
+- It deviates from standard function implementation models
 
 #### Specifying Expressions as Strings
 
-Another proposed alternative was to allow the expression to be
-a string type and to give functions the capability to parse/eval
-expressions.  The `sort_by` function would look like this:
+Another alternative proposed using string literals for expressions:
 
 ```
 sort_by(people, `age`)
 sort_by(people, `foo.bar.baz`)
 ```
 
-The main reasons this proposal was not chosen was because:
+This approach was rejected because:
 
-
-* This complicates the implementations.  For implementations that walk the AST
-inline, this means AST nodes need access to the parser.  For external tree
-visitors, the visitor needs access to the parser.
-
-
-* This moves what *could* by a compile time error into a run time error.  The
-evaluation of the expression string happens when the function is invoked.
+- It complicates implementations, requiring AST nodes or visitors to access the
+  parser
+- It converts potential compile-time errors into runtime errors, as expression
+  validation occurs during function execution rather than during compilation
