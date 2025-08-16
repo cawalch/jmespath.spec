@@ -1,7 +1,6 @@
 ---
 title: group_by
 id: 18
-parent: 3a
 status: accepted
 author: Maxime Labelle
 created: 2022-08-05
