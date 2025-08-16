@@ -1,22 +1,23 @@
-# Improved Identifiers
+---
+title: Improved Identifiers
+jep: 6
+author: James Saryerwinnie
+status: accepted
+created: 2013-12-14
+---
 
-|||
-|---|---
-| **JEP**    | 6
-| **Author** | James Saryerwinnie
-| **Status** | accepted
-| **Created**| 14-Dec-2013
-| **Last Updated**| 15-Dec-2013
+# Improved Identifiers
 
 ## Abstract
 
 This JEP proposes grammar modifications to JMESPath in order to improve
-identifiers used in JMESPath.  In doing so, several inconsistencies in the
+identifiers used in JMESPath. In doing so, several inconsistencies in the
 identifier grammar rules will be fixed, along with an improved grammar for
-specifying unicode identifiers in a way that is consistent with JSON
-strings.
+specifying Unicode identifiers in a way that is consistent with JSON strings.
 
-**Note**: this document uses [JEP-12 JSON Literals](https://github.com/jmespath-community/jmespath.spec/blob/main/jep-012-raw-string-literals.md#abnf) such as strings like `` `"foo"` `` and numbers like `` `-1` ``.
+**Note**: this document uses
+[JEP-12 JSON Literals](https://github.com/jmespath-community/jmespath.spec/blob/main/jep-012-raw-string-literals.md#abnf)
+such as strings like `` `"foo"` `` and numbers like `` `-1` ``.
 
 ## Motivation
 
@@ -32,8 +33,7 @@ and the quoted rule:
 identifier        =/ quote 1*(unescaped-char / escaped-quote) quote
 ```
 
-The `char` rule contains a set of characters that do **not** have to be
-quoted:
+The `char` rule contains a set of characters that do **not** have to be quoted:
 
 ```
 char              = %x30-39 / ; 0-9
@@ -50,15 +50,15 @@ number            = ["-"]1*digit
 digit             = "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9" / "0"
 ```
 
-It’s ambiguous which rule to use.  Given a string “123”, it’s not clear whether
+It’s ambiguous which rule to use. Given a string “123”, it’s not clear whether
 this should be parsed as an identifier or a number. Existing implementations
-**aren’t** following this rule (because it’s ambiguous) so the grammar should
+**are not** following this rule (because it’s ambiguous) so the grammar should
 be updated to remove the ambiguity, specifically, an unquoted identifier can
 only start with the characters `[a-zA-Z_]`.
 
 ### Unicode
 
-JMESPath supports unicode through the `char`  and `unescaped-char` rule:
+JMESPath supports Unicode through the `char` and `unescaped-char` rule:
 
 ```
 unescaped-char    = %x30-10FFFF
@@ -69,19 +69,18 @@ char              = %x30-39 / ; 0-9
                     %x7F-10FFFF
 ```
 
-However, JSON supports a syntax for escaping unicode characters.  Any
-character in the Basic Multilingual Plane (BMP) can be escaped with:
+However, JSON supports a syntax for escaping Unicode characters. Any character
+in the Basic Multilingual Plane (BMP) can be escaped with:
 
 ```
 char = escape (%x75 4HEXDIG )  ; \uXXXX
 ```
 
-Similar to the way that XPath supports numeric character references used
-in XML (`&#nnnn`), JMESPath should support the same escape sequences
-used in JSON.  JSON also supports a 12 character escape sequence for
-characters outside of the BMP, by encoding the UTF-16 surrogate pair.
-For example, the code point `U+1D11E` can be represented
-as `"\uD834\uDD1E"`.
+Similar to the way that XPath supports numeric character references used in XML
+(`&#nnnn`), JMESPath should support the same escape sequences used in JSON. JSON
+also supports a 12 character escape sequence for characters outside of the BMP,
+by encoding the UTF-16 surrogate pair. For example, the code point `U+1D11E` can
+be represented as `"\uD834\uDD1E"`.
 
 ### Escape Sequences
 
@@ -91,29 +90,28 @@ Consider the following JSON object:
 {"foo\nbar": "baz"}
 ```
 
-A JMESPath expression should be able to retrieve the value of baz.  With
-the current grammar, one must rely on the environment’s ability to input
-control characters such as the newline (`%x0A`).  This can be problematic
-in certain environments.  For example, in python, this is not a problem:
+A JMESPath expression should be able to retrieve the value of baz. With the
+current grammar, one must rely on the environment’s ability to input control
+characters such as the newline (`%x0A`). This can be problematic in certain
+environments. For example, in python, this is not a problem:
 
 ```
 >>> jmespath_expression = "foo\nbar"
 ```
 
-Python will interpret the sequence `\n` (`%x5C %x6E`) as the newline
-character `%x0A`.  However, consider Bash:
+Python will interpret the sequence `\n` (`%x5C %x6E`) as the newline character
+`%x0A`. However, consider Bash:
 
 ```
 $ foo --jmespath-expression "foo\nbar"
 ```
 
-In this situation, bash will not interpret the `\n` (`%x5C %x6E`)
-sequence.
+In this situation, bash will not interpret the `\n` (`%x5C %x6E`) sequence.
 
 ## Specification
 
-The `char` rule contains a set of characters that do **not** have to be
-quoted.  The new set of characters that do not have to quoted will be:
+The `char` rule contains a set of characters that do **not** have to be quoted.
+The new set of characters that do not have to quoted will be:
 
 ```
 unquoted-string   = (%x41-5A / %x61-7A / %x5F) *(%x30-39 / %x41-5A / %x5F / %x61-7A)
@@ -122,11 +120,11 @@ unquoted-string   = (%x41-5A / %x61-7A / %x5F) *(%x30-39 / %x41-5A / %x5F / %x61
 In order for an identifier to not be quoted, it must start with `[A-Za-z_]`,
 then must be followed by zero or more `[0-9A-Za-z_]`.
 
-The unquoted rule is updated to account for all JSON supported escape
+The quoted-string rule is updated to account for all JSON supported escape
 sequences:
 
 ```
-quoted-string     =/ quote 1*(unescaped-char / escaped-char) quote
+quoted-string     = quote 1*(unescaped-char / escaped-char) quote
 ```
 
 The full rule for an identifier is:
@@ -159,13 +157,13 @@ escaped-char      = escape (
 Adopting the same string rules as JSON strings will allow users familiar with
 JSON semantics to understand how JMESPath identifiers will work.
 
-This change also provides a nice consistency for the literal syntax proposed
-in JEP 3.  With this model, the supported literal strings can be the same
-as quoted identifiers.
+This change also provides a nice consistency for the literal syntax proposed in
+JEP 3. With this model, the supported literal strings can be the same as quoted
+identifiers.
 
-This also will allow the grammar to grow in a consistent way if JMESPath
-adds support for filtering based on literal values.  For example (note that
-this is just a suggested syntax, not a formal proposal), given the data:
+This also will allow the grammar to grow in a consistent way if JMESPath adds
+support for filtering based on literal values. For example (note that this is
+just a suggested syntax, not a formal proposal), given the data:
 
 ```
 {"foo": [{"✓": "✓"}, {"✓": "✗"}]}
@@ -186,13 +184,13 @@ identifier.
 For any implementation that was parsing digits as an identifier, identifiers
 starting with digits will no longer be valid, e.g. `foo.0.1.2`.
 
-There are several compliance tests that will have to be updated as a result
-of this JEP.  They were arguably wrong to begin with.
+There are several compliance tests that will have to be updated as a result of
+this JEP. They were arguably wrong to begin with.
 
 ### basic.json
 
-The following needs to be changed because identifiers starting
-with a number must now be quoted:
+The following needs to be changed because identifiers starting with a number
+must now be quoted:
 
 ```
 -            "expression": "foo.1",
@@ -206,8 +204,8 @@ with a number must now be quoted:
           },
 ```
 
-Similarly, the following needs to be changed because an unquoted
-identifier cannot start with `-`:
+Similarly, the following needs to be changed because an unquoted identifier
+cannot start with `-`:
 
 ```
 -            "expression": "foo.-1",
@@ -218,8 +216,8 @@ identifier cannot start with `-`:
 
 ### escape.json
 
-The escape.json has several more interseting cases that need to be updated.
-This has to do with the updated escaping rules.  Each one will be explained.
+The escape.json has several more interseting cases that need to be updated. This
+has to do with the updated escaping rules. Each one will be explained.
 
 ```
 -            "expression": "\"foo\nbar\"",
@@ -228,11 +226,11 @@ This has to do with the updated escaping rules.  Each one will be explained.
           },
 ```
 
-This has to be updated because a JSON parser will interpret the `\n` sequence
-as the newline character.  The newline character is **not** allowed in a
-JMESPath identifier (note that the newline character `%0A` is not in any
-rule).  In order for a JSON parser to create a sequence of `%x5C %x6E`, the
-JSON string must be `\\n` (`%x5C %x5C %x6E`).
+This has to be updated because a JSON parser will interpret the `\n` sequence as
+the newline character. The newline character is **not** allowed in a JMESPath
+identifier (note that the newline character `%0A` is not in any rule). In order
+for a JSON parser to create a sequence of `%x5C %x6E`, the JSON string must be
+`\\n` (`%x5C %x5C %x6E`).
 
 ```
 -            "expression": "\"c:\\\\windows\\path\"",
@@ -241,11 +239,11 @@ JSON string must be `\\n` (`%x5C %x5C %x6E`).
           },
 ```
 
-The above example is a more pathological case of escaping.  In this example, we
-have a string that represents a windows path “c:\\\\windows\\path”.  There are two
-levels of escaping happening here, one at the JSON parser, and one at the
-JMESPath parser.  The JSON parser will take the sequence
+The above example is a more pathological case of escaping. In this example, we
+have a string that represents a windows path “c:\\\\windows\\path”. There are
+two levels of escaping happening here, one at the JSON parser, and one at the
+JMESPath parser. The JSON parser will take the sequence
 `"\"c:\\\\\\\\windows\\\\path\""` and create a string with contents
 `"c:\\\\windows\\path"` (in which the first and last character are both `"`).
-The JMESPath parser will take that and, applying its own unescaping, will
-look for a key named `c:\\windows\path`.
+The JMESPath parser will take that and, applying its own unescaping, will look
+for a key named `c:\\windows\path`.
