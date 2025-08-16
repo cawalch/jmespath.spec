@@ -1,24 +1,24 @@
-# Filter Expressions
+---
+title: Filter Expressions
+jep: 7
+author: James Saryerwinnie
+status: accepted
+created: 2013-12-16
+---
 
-|||
-|---|---
-| **JEP**    | 7
-| **Author** | James Saryerwinnie
-| **Status** | accepted
-| **Created**| 16-Dec-2013
+# Filter Expressions
 
 ## Abstract
 
-This JEP proposes grammar modifications to JMESPath to allow for filter
-expressions.  A filtered expression allows list elements to be selected
-based on matching expressions.  A literal expression
-is also introduced (from JEP-3) so that it is possible to match elements
-against literal values.
+This JEP proposes grammar modifications to JMESPath to enable filter
+expressions. A filter expression allows list elements to be selected based on
+matching expressions. A literal expression is also introduced (from JEP-3) to
+enable matching elements against literal values.
 
 ## Motivation
 
-A common request when querying JSON objects is the ability to select
-elements based on a specific value.  For example, given a JSON object:
+A common requirement when querying JSON objects is selecting elements based on
+specific values. For example, given this JSON:
 
 ```
 {"foo": [{"state": "WA", "value": 1},
@@ -27,17 +27,16 @@ elements based on a specific value.  For example, given a JSON object:
          {"state": "CA", "value": 4}]}
 ```
 
-A user may want to select all objects in the `foo` list that have
-a `state` key of `WA`.  There is currently no way to do this
-in JMESPath.  This JEP will introduce a syntax that allows this:
+A user may want to select all objects in the `foo` list where the `state` key
+equals `WA`. This capability doesn't currently exist in JMESPath. This JEP
+introduces syntax to address this:
 
 ```
 foo[?state == `WA`]
 ```
 
-Additionally, a user may want to project additional expressions onto the values
-matched from a filter expression.  For example, given the data above, select
-the `value` key from all objects that have a `state` of `WA`:
+Additionally, users often need to project expressions onto filtered values. For
+instance, selecting the `value` key from all objects with `state` equal to `WA`:
 
 ```
 foo[?state == `WA`].value
@@ -65,9 +64,9 @@ unescaped-literal      = %x20-21 /       ; space !
 escaped-literal        = escaped-char / (escape %x60)
 ```
 
-The `json-value` rule is any valid json value.  While it’s recommended
-that implementations use an existing JSON parser to parse the
-`json-value`, the grammar is added below for completeness:
+The `json-value` rule represents any valid JSON value. While implementations are
+recommended to use an existing JSON parser for `json-value`, the grammar is
+included below for completeness:
 
 ```
 json-value = "false" / "null" / "true" / json-object / json-array /
@@ -101,49 +100,34 @@ zero = %x30                ; 0
 
 ### Comparison Operators
 
-The following operations are supported:
+Supported operations:
 
+- `==`, tests for equality
+- `!=`, tests for inequality
+- `<`, less than
+- `<=`, less than or equal to
+- `>`, greater than
+- `>=`, greater than or equal to
 
-* `==`, tests for equality.
-
-
-* `!=`, tests for inequality.
-
-
-* `<`, less than.
-
-
-* `<=`, less than or equal to.
-
-
-* `>`, greater than.
-
-
-* `>=`, greater than or equal to.
-
-The behavior of each operation is dependent on the type of each evaluated
-expression.
-
-The comparison semantics for each operator are defined below based on
-the corresponding JSON type:
+Operator behavior depends on the evaluated expression types.
 
 #### Equality Operators
 
-For `string/number/true/false/null` types, equality is an exact match. A
-`string` is equal to another `string` if they they have the exact sequence
-of code points.  The literal values `true/false/null` are only equal to their
-own literal values.  Two JSON objects are equal if they have the same set
-of keys (for each key in the first JSON object there exists a key with equal
-value in the second JSON object).  Two JSON arrays are equal if they have
-equal elements in the same order (given two arrays `x` and `y`,
-for each `i` in `x`, `x[i] == y[i]`).
+For `string`, `number`, `true`, `false`, and `null` types, equality requires an
+exact match:
+
+- Two `string` values are equal if their code point sequences are identical
+- Literal values (`true`/`false`/`null`) only equal their own literal values
+- Two JSON objects are equal if they share identical key sets with equal values
+  for each key
+- Two JSON arrays are equal if they contain equal elements in the same order
+  (for arrays `x` and `y`, `x[i] == y[i]` for all `i`)
 
 #### Ordering Operators
 
-Ordering operators `>, >=, <, <=` are **only** valid for numbers.
-Evaluating any other type with a comparison operator will yield a `null`
-value, which will result in the element being excluded from the result list.
-For example, given:
+Ordering operators (`>`, `>=`, `<`, `<=`) **only** operate on numbers.
+Evaluating other types yields `null`, excluding the element from results. For
+example:
 
 ```
 search('foo[?a<b]', {"foo": [{"a": "char", "b": "char"},
@@ -151,21 +135,15 @@ search('foo[?a<b]', {"foo": [{"a": "char", "b": "char"},
                              {"a": 1, "b": 2}]})
 ```
 
-The three elements in the foo list are evaluated against `a < b`.  The first
-element resolves to the comparison `"char" < "bar"`, and because these types
-are string, the expression results in `null`, so the first element is not
-included in the result list.  The second element resolves to `2 < 1`,
-which is `false`, so the second element is excluded from the result list.
-The third expression resolves to `1 < 2` which evalutes to `true`, so the
-third element is included in the list.  The final result of that expression
-is `[{"a": 1, "b": 2}]`.
+- First element: `"char" < "char"` → invalid type → `null` → excluded
+- Second element: `2 < 1` → `false` → excluded
+- Third element: `1 < 2` → `true` → included  
+  Final result: `[{"a": 1, "b": 2}]`
 
 ### Filtering Semantics
 
-When a filter expression is matched, the matched element in its entirety is
-included in the filtered response.
-
-Using the previous example, given the following data:
+When a filter expression matches, the entire element is included in results.
+Using the earlier data:
 
 ```
 {"foo": [{"state": "WA", "value": 1},
@@ -174,49 +152,47 @@ Using the previous example, given the following data:
          {"state": "CA", "value": 4}]}
 ```
 
-The expression ``foo[?state == `WA`]`` will return the following value:
+The expression `foo[?state == ```WA```]` returns:
 
 ```
-[{"state": "WA", "value": 1}]
+[{"state": "WA", "value": 1}, {"state": "WA", "value": 2}]
 ```
 
 ### Literal Expressions
 
-Literal expressions are also added in the JEP, which is essentially a JSON
-value surrounded by the “\`” character.  You can escape the “\`” character via
-“\\\`”, and if the character “\`” appears in the JSON value, it must also be
-escaped.  A simple two pass algorithm in the lexer could first process any
-escaped “\`” characters before handing the resulting string to a JSON parser.
+Literal expressions consist of JSON values surrounded by backticks. The backtick
+character must be escaped as ```\```` within literals. A two-pass lexer approach
+should:
 
-Because string literals are by far the most common type of JSON value, an
-alternate syntax is supported where the starting and ending double quotes
-are not required for strings.  For example:
+1. Process escaped backticks (``\```` → ` ` ``)
+2. Pass the resulting string to a JSON parser
 
-```
-`foobar`   -> "foobar"
-`"foobar"` -> "foobar"
-`123`      -> 123
-`"123"`    -> "123"
-`123.foo`  -> "123.foo"
-`true`     -> true
-`"true"`   -> "true"
-`truee`    -> "truee"
-```
-
-Literal expressions aren’t allowed on the right hand side of a subexpression:
+String literals commonly omit surrounding double quotes:
 
 ```
-foo[*].`literal`
+`foobar`   → "foobar"
+`"foobar"` → "foobar"
+`123`      → 123
+`"123"`    → "123"
+`123.foo`  → "123.foo"
+`true`     → true
+`"true"`   → "true"
+`truee`    → "truee"
 ```
 
-but they are allowed on the left hand side:
+Literal expressions are prohibited on the right-hand side of subexpressions:
+
+```
+foo[*].`literal`  // Invalid
+```
+
+But allowed on the left-hand side:
 
 ```
 `{"foo": "bar"}`.foo
 ```
 
-They may also be included in other expressions outside of a filter expressions.
-For example:
+They may also appear outside filter expressions, such as in multi-select hashes:
 
 ```
 {value: foo.bar, type: `multi-select-hash`}
@@ -224,67 +200,23 @@ For example:
 
 ## Rationale
 
-The proposed filter expression syntax was chosen such that there is sufficient
-expressive power for any type of filter one might need to perform while at the
-same time being as minimal as possible.  To help illustrate this, below are a
-few alternate syntax that were considered.
+The proposed filter syntax balances expressive power with minimalism. Alternate
+approaches considered:
 
-In the simplest case where one might filter a key based on a literal value,
-a possible filter syntax would be:
+- Simple syntax like `foo[bar == baz]` has critical limitations:
+  - Cannot filter based on two expressions (e.g., `foo` key equals `bar` key)
+  - Literal-on-right syntax increases error risk (`foo[baz == bar]` vs
+    `foo[bar == baz]`)
+  - Ambiguity with existing multiselect syntax (`[foo]` could mean filter or
+    multiselect)
+  - Poor readability for complex literals (`[foo == [2]]`)
+  - Literal expressions gain utility beyond filters (e.g., multi-select hashes)
 
-```
-foo[bar == baz]
-```
+This JEP remains intentionally minimal. Future extensions could include:
 
-or in general terms: `[identifier comparator literal-value]`.  However this
-has several issues:
-
-
-* It is not possible to filter based on two expressions (get all elements whose
-`foo` key equals its `bar` key.
-
-
-* The literal value is on the right hand side, making it hard to troubleshoot
-if the identifier and literal value are swapped: `foo[baz == bar]`.
-
-
-* Without some identifying token unary filters would not be possible as they
-would be ambiguous.  Is the expression `[foo]` filtering all elements with
-a foo key with a truth value or is it a multiselect-list selecting the
-`foo` key from each hash?  Starting a filter expression with a token such
-as `[?` make it clear that this is a filter expression.
-
-
-* This makes the syntax for filtering against literal JSON arrays and objects
-hard to visually parse.  “Filter all elements whose `foo` key is a single
-list with a single integer value of 2:  `[foo == [2]]`.
-
-
-* Adding literal expressions makes them useful even outside of a filter
-expression.  For example, in a `multi-select-hash`, you can create
-arbitrary key value pairs:  ``{a: foo.bar, b: `some string`}``.
-
-This JEP is purposefully minimal.  There are several extensions that can be
-added in future:
-
-
-* Support any arbitrary expression within the `[? ... ]`.  This would
-enable constructs such as or expressions within a filter.  This would
-allow unary expressions.
-
-In order for this to be useful we need to define what corresponds to true and
-false values, e.g. an empty list is a false value.  Additionally, “or
-expressions” would need to change its semantics to branch based on the
-true/false value of an expression instead of whether or not the expression
-evalutes to null.
-
-This is certainly a direction to take in the future, adding arbitrary
-expressions in a filter would be a backwards compatible change, so it’s not
-part of this JEP.
-
-
-* Allow filter expressions as top level expressions.  This would potentially
-just return `true/false` for any value that it matched.
-
-This might be useful if you can combine this with something that can accept
-a list to use as a mask for filtering other elements.
+- Arbitrary expressions within filters (enabling `OR` conditions)  
+  Requires defining truthy/falsy values and expression branching semantics.
+  Backward-compatible, so deferred.
+- Top-level filter expressions  
+  Might return boolean masks for list filtering. Requires complementary
+  operators for practical use.
