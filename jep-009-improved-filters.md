@@ -1,47 +1,46 @@
-# Improved Filters
+---
+title: Improved Filters
+jep: 9
+status: accepted
+created: 2014-07-07
+author: James Saryerwinnie
+---
 
-|||
-|---|---
-| **JEP**    | 9
-| **Author** | James Saryerwinnie
-| **Status** | accepted
-| **Created**| 07-July-2014
+# Improved Filters
 
 ## Abstract
 
-JEP-7 introduced filter expressions, which is a mechanism to allow
-list elements to be selected based on matching an expression against
-each list element.  While this concept is useful, the actual comparator
-expressions were not sufficiently capable to accomodate a number of common
-queries.  This JEP expands on filter expressions by proposing support for
-`and-expressions`, `not-expression`, `paren-expressions`, and
-`unary-expressions`.  With these additions, the capabilities of a filter
-expression now allow for sufficiently powerful queries to handle the majority
-of queries.
+JEP-7 introduced filter expressions, enabling list elements to be selected based
+on matching expressions against each element. While this concept proved useful,
+the comparator expressions lacked sufficient capability to accommodate numerous
+common query patterns. This JEP expands filter expressions by introducing
+support for `and-expressions`, `not-expressions`, `paren-expressions`, and
+`unary-expressions`. These additions significantly enhance filter expression
+capabilities, enabling sufficiently powerful queries to handle the majority of
+practical use cases.
 
 ## Motivation
 
-JEP-7 introduced filter queries, that essentially look like this:
+JEP-7 introduced filter queries with the following structure:
 
 ```
-foo[?lhs omparator rhs]
+foo[?lhs comparator rhs]
 ```
 
-where the left hand side (lhs)  and the right hand side (rhs)
-are both an `expression`, and comparator is one of
-`==, !=, <, <=, >, >=`.
+where the left-hand side (lhs) and right-hand side (rhs) are both `expression`s,
+and `comparator` is one of `==`, `!=`, `<`, `<=`, `>`, or `>=`.
 
-This added a useful feature to JMESPath: the ability to filter
-a list based on evaluating an expression against each element in a list.
+This added a valuable feature to JMESPath: the ability to filter lists by
+evaluating expressions against each element.
 
-In the time since JEP-7 has been part of JMESPath, a number of cases have been
-pointed out in which filter expressions cannot solve.  Below are examples of
-each type of missing features.
+Since JEP-7's incorporation into JMESPath, several limitations have emerged
+where filter expressions cannot express required queries. Below are examples of
+missing features.
 
 ### Or Expressions
 
-First, users want the ability to filter based on matching one or more
-expressions.  For example, given:
+Users need the ability to filter based on matching one or more expressions. For
+example, given:
 
 ```
 {
@@ -56,30 +55,28 @@ expressions.  For example, given:
 }
 ```
 
-a user might want to select locations on the west coast, which in
-this specific example means cities in either `WA`, `OR`, or
-`CA`.  It’s not possible to express this as a filter expression
-given the grammar of `expression comparator expression`.  Ideally
-a user should be able to use:
+A user might want to select locations on the west coast (cities in `WA`, `OR`,
+or `CA`). This cannot be expressed with the current
+`expression comparator expression` grammar. Ideally, users should be able to
+write:
 
 ```
 cities[?state == `WA` || state == `OR` || state == `CA`]
 ```
 
-JMESPath already supports Or expressions, just not in the context
-of filter expressions.
+While JMESPath already supports OR expressions, they weren't permitted within
+filter expressions.
 
 ### And Expressions
 
-The next missing feature of filter expressions is support for And
-expressions.  It’s actually somewhat odd that JMESPath has support
-for Or expressions, but not for And expressions.  For example,
-given a list of user accounts with permissions:
+Filter expressions lack support for AND expressions. It's somewhat inconsistent
+that JMESPath supports OR expressions but not AND expressions. For example,
+given user accounts with permissions:
 
 ```
 {
   "users": [
-    {"name": "user1", "type": "normal"", "allowed_hosts": ["a", "b"]},
+    {"name": "user1", "type": "normal", "allowed_hosts": ["a", "b"]},
     {"name": "user2", "type": "admin", "allowed_hosts": ["a", "b"]},
     {"name": "user3", "type": "normal", "allowed_hosts": ["c", "d"]},
     {"name": "user4", "type": "admin", "allowed_hosts": ["c", "d"]},
@@ -89,8 +86,8 @@ given a list of user accounts with permissions:
 }
 ```
 
-We’d like to find admin users that have permissions to the host named
-`c`.  Ideally, the filter expression would be:
+We'd like to find admin users with access to host `c`. The ideal filter
+expression would be:
 
 ```
 users[?type == `admin` && contains(allowed_hosts, `c`)]
@@ -98,14 +95,13 @@ users[?type == `admin` && contains(allowed_hosts, `c`)]
 
 ### Unary Expressions
 
-Think of an if statement in a language such as C or Java.  While you can write
-an if statement that looks like:
+Consider if statements in languages like C or Java. While you can write:
 
 ```
 if (foo == bar) { ... }
 ```
 
-You can also use a unary expression such as:
+You can also use unary expressions:
 
 ```
 if (allowed_access) { ... }
@@ -117,21 +113,20 @@ or:
 if (!allowed_access) { ... }
 ```
 
-Adding support for unary expressions brings a natural syntax when filtering
-against boolean values.  Instead of:
+Adding unary expression support creates natural syntax when filtering against
+boolean values. Instead of:
 
 ```
 foo[?boolean_var == `true`]
 ```
 
-a user could instead use:
+Users could write:
 
 ```
 foo[?boolean_var]
 ```
 
-As a more realistic example, given a slightly different structure
-for the `users` data above:
+For a more realistic example, using modified `users` data:
 
 ```
 {
@@ -146,38 +141,34 @@ for the `users` data above:
 }
 ```
 
-If we want to get the names of all admin users whose account is enabled, we
-could either say:
+To get names of all enabled admin users, we could write:
 
 ```
-users[?is_admin == `true` && disabled == `false]
+users[?is_admin == `true` && disabled == `false`]
 ```
 
-but it’s more natural and succinct to instead say:
+But it's more natural and concise to write:
 
 ```
 users[?is_admin && !disabled]
 ```
 
-A case can be made that this syntax is not strictly necessary.  This is true.
-However, the main reason for adding support for unary expressions in a filter
-expression is users expect this syntax, and are surprised when this is not
-a supported syntax.  Especially now that we are basically anchoring to
-a C-like syntax for filtering in this JEP, users will expect unary expressions
-even more.
+While not strictly necessary, the primary reason for adding unary expression
+support is user expectation. Users anticipate this syntax and are surprised when
+it's unavailable. Especially now that we're adopting C-like syntax for
+filtering, users will increasingly expect unary expressions.
 
 ### Paren Expressions
 
-Once `||` and `&&` statements have been introduced, there will be times
-when you want to override the precedence of these operators.
+Once `||` and `&&` operators are introduced, there will be cases where
+overriding operator precedence is necessary.
 
-A `paren-expression` allows a user to override the precedence order of
-an expression, e.g. `(a || b) && c`, instead of the default precedence
-of `a || (b && c)` for the expression `a || b && c`.
+A `paren-expression` allows users to override expression precedence, e.g.,
+`(a || b) && c` instead of the default `a || (b && c)` for `a || b && c`.
 
 ## Specification
 
-There are several updates to the grammar:
+Several grammar updates are required:
 
 ```
 and-expression         = expression "&&" expression
@@ -185,36 +176,33 @@ not-expression         = "!" expression
 paren-expression       = "(" expression ")"
 ```
 
-Additionally, the `filter-expression` rule is updated
-to be more general:
+Additionally, the `bracket-specifier` rule becomes more general:
 
 ```
 bracket-specifier      =/ "[?" expression "]"
 ```
 
-The `list-filter-expr` is now a more general
-`comparator-expression`:
+The `list-filter-expression` is now a more general `comparator-expression`:
 
 ```
 comparator-expression  = expression comparator expression
 ```
 
-which is now just an expression:
+Which integrates into the expression hierarchy:
 
 ```
-expression /= comparator-expression
+expression            /= comparator-expression
 ```
 
-And finally, the `current-node` is now allowed as a generic
-expression:
+And the `current-node` becomes a valid general expression:
 
 ```
-expression /= current-node
+expression            /= current-node
 ```
 
 ### Operator Precedence
 
-This JEP introduces and expressions, which would normally be defined as:
+This JEP introduces AND expressions, which would typically be defined as:
 
 ```
 expression     = or-expression / and-expression / not-expression
@@ -223,9 +211,8 @@ and-expression = expression "&&" expression
 not-expression = "!" expression
 ```
 
-However, if this current pattern is followed, it makes it impossible to parse
-an expression with the correct precedence.  A more standard way of expressing
-this would be:
+However, this structure makes correct precedence parsing impossible. A more
+standard approach is:
 
 ```
 expression          = or-expression
@@ -234,140 +221,103 @@ and-expression      = not-expression "&&" not-expression
 not-expression      = "!" expression
 ```
 
-The precedence for the new boolean expressions matches how most
-other languages define boolean expressions.  That is from weakest
-binding to tightest binding:
+The precedence for new boolean expressions matches most programming languages,
+ordered from weakest to tightest binding:
 
+- OR - `||`
+- AND - `&&`
+- Unary NOT - `!`
 
-* Or - `||`
+Thus, `a || b && c` parses as `a || (b && c)` rather than `(a || b) && c`.
 
+The complete operator precedence list now reads:
 
-* And - `&&`
+- Pipe - `|`
+- OR - `||`
+- AND - `&&`
+- Unary NOT - `!`
+- Rbracket - `]`
 
-
-* Unary not - `!`
-
-So for example, `a || b && c` is parsed as `a || (b && c)` and
-not `(a || b) && c`.
-
-The operator precedence list in the specification will now read:
-
-
-* Pipe - `|`
-
-
-* Or - `||`
-
-
-* And - `&&`
-
-
-* Unary not - `!`
-
-
-* Rbracket - `]`
-
-Now that these expressions are allowed as general `expressions`, there
-semantics outside of their original contexts must be defined.
+Since these expressions are now valid general `expressions`, their semantics
+outside original contexts must be defined.
 
 ### And Expressions
 
-For reference, the JMESPath spec already defines the following values
-as “false-like” values:
+JMESPath defines the following "false-like" values:
 
+- Empty list: `[]`
+- Empty object: `{} `
+- Empty string: `""`
+- False boolean: `false`
+- Null value: `null`
 
-* Empty list: `[]`
+Any value not in this list is "truth-like."
 
+An `and-expression` follows standard semantics:
 
-* Empty object: `{}`
+- If left-hand side is truth-like, return right-hand side value
+- Otherwise, return left-hand side value
 
+This produces the expected truth table:
 
-* Empty string: `""`
+| LHS   | RHS   | Result |
+| ----- | ----- | ------ |
+| True  | True  | True   |
+| True  | False | False  |
+| False | True  | False  |
+| False | False | False  |
 
-
-* False boolean: `false`
-
-
-* Null value: `null`
-
-And any value that is not a false-like value is a truth-like value.
-
-An `and-expression` has similar semantics to and expressions in other
-languages.  If the expression on the left hand side is a truth-like value, then
-the value on the right hand side is returned.  Otherwise the result of the
-expression on the left hand side is returned.  This also reduces to the
-expected truth table:
-
-### Truth table for and expressions
-
-| LHS | RHS | Result
-|---|---|---
-| True | True | True
-| True | False | False
-| False | True | False
-| False | False | False
-
-This is the standard truth table for a
+This matches the standard truth table for
 [logical conjunction (AND)](https://en.wikipedia.org/wiki/Truth_table#Logical_conjunction_.28AND.29).
-
-Below are a few examples of and expressions:
 
 #### Examples
 
 ```
-search(True && False, {"True": true, "False": false}) -> false
-search(Number && EmptyList, {"Number": 5, EmptyList: []}) -> []
-search(foo[?a == `1` && b == `2`],
-       {"foo": [{"a": 1, "b": 2}, {"a": 1, "b": 3}]}) -> [{"a": 1, "b": 2}]
+search(`true && false`, {"true": true, "false": false}) → false
+search(`Number && EmptyList`, {"Number": 5, "EmptyList": []}) → []
+search(`foo[?a == `1` && b == `2`], {"foo": [{"a": 1, "b": 2}, {"a": 1, "b": 3}]}) → [{"a": 1, "b": 2}]
 ```
 
 ### Not Expressions
 
-A `not-expression` negates the result of an expression.  If the expression
-results in a truth-like value, a `not-expression` will change this value to
-`false`.  If the expression results in a false-like value, a
-`not-expression` will change this value to `true`.
+A `not-expression` negates an expression's result:
+
+- If expression yields truth-like value, result becomes `false`
+- If expression yields false-like value, result becomes `true`
 
 #### Examples
 
 ```
-search(!True, {"True": true}) -> false
-search(!False, {"False": false}) -> true
-search(!Number, {"Number": 5}) -> false
-search(!EmptyList, {"EmptyList": []}) -> true
+search(`!true`, {"true": true}) → false
+search(`!false`, {"false": false}) → true
+search(`!Number`, {"Number": 5}) → false
+search(`!EmptyList`, {"EmptyList": []}) → true
 ```
 
 ### Paren Expressions
 
-A `paren-expression` allows a user to override the precedence order of
-an expression, e.g. `(a || b) && c`.
+A `paren-expression` allows overriding expression precedence, e.g.,
+`(a || b) && c`.
 
 #### Examples
 
 ```
-search(foo[?(a == `1` || b ==`2`) && c == `5`],
-       {"foo": [{"a": 1, "b": 2, "c": 3}, {"a": 3, "b": 4}]}) -> []
+search(`foo[?(a == `1` || b == `2`) && c == `5`], {"foo": [{"a": 1, "b": 2, "c": 3}, {"a": 3, "b": 4}]}) → []
 ```
 
 ## Rationale
 
-This JEP brings several tokens that were only allowed in specific constructs
-into the more general `expression` rule.  Specifically:
+This JEP promotes several tokens from specific constructs to the general
+`expression` rule:
 
+- The `current-node` (`@`) was previously only allowed in function expressions
+  but is now a general `expression`
+- The `filter-expression` now accepts any arbitrary `expression`
+- The `list-filter-expression` is now a generic `comparator-expression`, which
+  is itself a general `expression`
 
-* The `current-node` (`@`) was previously only allowed in function
-expressions, but is now allowed as a general `expression`.
-
-
-* The `filter-expression` now accepts any arbitrary `expression`.
-
-
-* The `list-filter-expr` is now just a generic `comparator-expression`,
-which again is just a general `expression`.
-
-There are several reasons the previous grammar rules were minimally scoped.
-One of the main reasons, as stated in JEP-7 which introduced filter
-expressions, was to keep the spec “purposefully minimal.”  In fact the end
-of JEP-7 states that there “are several extensions that can be added in
-future.” This is in fact exactly what this JEP proposes, the recommendations
-from JEP-7.
+Previous grammar rules were minimally scoped for good reason. As stated in
+JEP-7, the specification was "purposefully minimal." In fact, JEP-7 concluded
+that "there are several extensions that can be added in future." This JEP
+directly implements those recommended extensions from JEP-7, enhancing the
+language while maintaining backward compatibility.
