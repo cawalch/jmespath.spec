@@ -1,91 +1,124 @@
-# Evaluation of Pipe Expressions
+---
+title: Evaluation of Pipe Expressions
+author: Maxime Labelle
+created: 2022-10-29
+jep: 19
+status: accepted
+---
 
-|||
-|---|---
-| **JEP**    |  19
-| **Author** | Maxime Labelle
-| **Created**| 29-October-2022
-| **SemVer** | MINOR
-| **Status**| accepted
+# Evaluation of Pipe Expressions
 
 ## Abstract
 
-This JEP introduces changes that outline the exact intended behaviour of evaluating a `pipe-expression`. It also clarifies an ambiguity when evaluating a `sub-expression` where the left-hand-side evaluates to `null`.
+This JEP proposes changes to the JMESPath specification to clarify the
+evaluation behavior of a `pipe-expression`. It also resolves an ambiguity in how
+a `sub-expression` is evaluated when its left-hand side results in `null`.
+
+---
 
 ## Motivation
 
-### Sub Expression Evaluation
+### Sub-Expression Evaluation
 
-The specification for [`sub-expression`](https://jmespath.org/specification.html#subexpressions) outlines how it should be evaluated using pseudocode:
+The specification for
+[`sub-expression`](<https://www.google.com/search?q=%5Bhttps://jmespath.org/specification.html%23subexpressions%5D(https://jmespath.org/specification.html%23subexpressions)>)
+currently outlines its evaluation with the following pseudocode:
 
 ```
-left-evaluation = search(left-expression, original-json-document)
+left-evaluation = search(left-expression, data)
 result = search(right-expression, left-evaluation)
 ```
 
-This is slightly ambiguous, as many compliance tests expect the result to be `null` when the left-hand-side evaluates to  `null`. So, the real pseudocode shoud in fact be:
+This description is ambiguous because the JMESPath compliance tests expect a
+sub-expression to "short-circuit" and return `null` immediately if the left-hand
+side evaluates to `null`. Therefore, the actual evaluation logic should be:
 
 ```
-left-evaluation = search(left-expression, original-json-document)
-if left-evaluation is `null` then result = `null`
-else result = search(right-expression, left-evaluation)
+left-evaluation = search(left-expression, data)
+if left-evaluation is `null` then
+  result = `null`
+else
+  result = search(right-expression, left-evaluation)
 ```
 
 ### Pipe Expression Evaluation
 
-In contrast, however, it seems intuitive for `pipe-expression` to evaluate as was originally outlined by the first pseudocode fragment referred to a above.
+Conversely, the intuitive behavior for a `pipe-expression` (`|`) is to pass the
+result of the left-hand side—**even if it is `null`**—to the right-hand side for
+evaluation. This means a pipe expression should _not_ short-circuit, and its
+behavior aligns with the simpler, original pseudocode:
 
 ```
-left-evaluation = search(left-expression, original-json-document)
+left-evaluation = search(left-expression, data)
 result = search(right-expression, left-evaluation)
 ```
 
-Which means that the evaluation should still happens if the left-hand-side is `null`.
+This JEP formalizes this distinction.
+
+---
 
 ## Specification
 
-### Sub Expressions
+The following changes will be made to the JMESPath specification.
 
-The paragraph on sub expressions in the specification will be updated as follows, with changes outlined in **bold**:
+### Sub-Expressions
 
-_A subexpression is evaluted as follows:_
+The paragraph on sub-expressions will be updated as follows (changes are in
+**bold**):
 
-- _Evaluate the expression on the left with the original JSON document._
-- _**If the result of the left expression evaluation is `null`, return `null`.**_
-- _**Otherwise, e**~~E~~valuate the expression on the right with the result of the left expression evaluation._
-
-_In pseudocode:_
-
-```
-left-evaluation = search(left-expression, original-json-document)
-If result is `null` the result = `null`
-else result = search(right-expression, left-evaluation)
-```
+> A sub-expression is evaluated as follows:
+>
+> - Evaluate the expression on the left with the current JSON document.
+> - **If the result of the left expression is `null`, the result of the
+>   sub-expression is `null`.**
+> - **Otherwise,** \~\~E\~\~evaluate the expression on the right using the
+>   result of the left expression as the new JSON document.
+>
+> _In pseudocode:_
+>
+> ```
+> left-evaluation = search(left-expression, data)
+> if left-evaluation is `null` then
+>   result = `null`
+> else
+>   result = search(right-expression, left-evaluation)
+> ```
 
 ### Pipe Expressions
 
-Likewise the paragraph on pipe expressions in the specification will be updated as follows:
+The paragraph on pipe expressions will be updated to clarify its unique
+behaviors:
 
-_A pipe expression combines two expressions, separated by the | character. It is similar to a sub-expression with ~~two~~**the following** important distinctions:_
-
-1. _Any expression can be used on the right hand side. A `sub-expression` restricts the type of expression that can be used on the right hand side._
-2. _A `pipe-expression` stops projections on the left hand side ~~for~~ **from** propagating to the right hand side. If the left expression creates a projection, it does not apply to the right hand side._
-3. _**A `pipe-expression` evaluates the right expression unconditionally.  A `sub-expression` shortcuts evaluation if the result of the left expression evaluation is `null`**_
-
-_**In pseudocode:**_
-
-```
-left-evaluation = search(left-expression, original-json-document)
-result = search(right-expression, left-evaluation)
-```
+> A pipe expression combines two expressions, separated by the `|` character. It
+> is similar to a sub-expression with **the following** important distinctions:
+>
+> 1.  Any expression can be used on the right-hand side. A `sub-expression`
+>     restricts the type of expression allowed on its right-hand side.
+> 2.  A `pipe-expression` stops projections. If the left expression creates a
+>     projection, that projection does not propagate to the right-hand side.
+> 3.  **A `pipe-expression` evaluates the right expression unconditionally. A
+>     `sub-expression` short-circuits evaluation if the result of the left
+>     expression is `null`.**
+>
+> _In pseudocode:_
+>
+> ```
+> left-evaluation = search(left-expression, data)
+> result = search(right-expression, left-evaluation)
+> ```
 
 ### Example
 
-| Expression | Result
-|---|----
-| `` `null` . [@] `` | `null`
-| `` `null` \| [@] `` | `[ null ]`
+The following table demonstrates the difference in behavior:
+
+| Expression              | Result   | Explanation                                                  |
+| ----------------------- | -------- | ------------------------------------------------------------ |
+| `` `null` . foo ``      | `null`   | The sub-expression short-circuits because the LHS is `null`. |
+| `` `null` \| type(@) `` | `"null"` | The `null` value is piped to the `type()` function.          |
+
+---
 
 ## Compliance
 
-The `pipe.json` compliance test file will be updated with the example from this JEP.
+The `pipe.json` compliance test file will be updated with test cases that verify
+this specified behavior.
