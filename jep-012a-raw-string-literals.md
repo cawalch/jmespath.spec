@@ -1,250 +1,212 @@
-# Raw String Literals
+---
+title: Raw String Literals
+jep: 12a
+author: Michael Downling, Maxime Labelle, Richard Gibson
+status: accepted
+created: 2022-11-19
+---
 
-|||
-|---|---
-| **JEP**    | 12a
-| **Author** | Michael Downling, Maxime Labelle, Richard Gibson
-| **Status** | accepted
-| **Created**| 19-Nov-2022
-| **Obsoletes**| [JEP-12](./jep-012-raw-string-literals.md)
+# Raw String Literals
 
 ## Abstract
 
-This JEP proposes the following modifications to JMESPath in order to improve
-the usability of the language and ease the implementation of parsers:
+This JEP proposes the following modifications to JMESPath to improve the
+usability of the language and ease the implementation of parsers:
 
+- Addition of a **raw string literal** to JMESPath. This will allow for the
+  direct expression of string content that would otherwise be interpreted as
+  JSON escape sequences (e.g., `'\n'`, `'\r'`, `'\u005C'`).
 
-* Addition of a **raw string literal** to JMESPath that will allow direct
-expression of string contents that would otherwise be modified by
-interpretation as JSON (e.g., `'\n'`, `'\r'`, `'\u005C'`).
-
-
-* Deprecation of  the current literal parsing behavior that allows for unquoted
-JSON strings to be parsed as JSON strings, removing an ambiguity in the
-JMESPath grammar and helping to ensure consistency among implementations.
+- Deprecation of the current literal parsing behavior that allows unquoted text
+  to be parsed as a JSON string. This removes an ambiguity in the JMESPath
+  grammar and helps ensure consistency among implementations.
 
 This proposal seeks to add the following syntax to JMESPath:
 
-```
+```jmespath
 'foobar'
 'foo\'bar'
 `bar` -> Parse error
 ```
 
+---
+
 ## Motivation
 
-Raw string literals are provided in [various programming languages](https://en.wikipedia.org/wiki/String_literal#Raw_strings) in order to prevent
-language specific interpretation (i.e., JSON parsing) and remove the need for
-escaping, avoiding a common problem called [leaning toothpick syndrome (LTS)](https://en.wikipedia.org/wiki/Leaning_toothpick_syndrome). Leaning toothpick
-syndrome is an issue in which strings become unreadable due to excessive use of
-escape characters in order to avoid delimiter collision (e.g., `"\\\\\\"`).
+Raw string literals are provided in
+[various programming languages](https://en.wikipedia.org/wiki/String_literal#Raw_strings)
+to prevent language-specific interpretation (i.e., JSON parsing) and remove the
+need for excessive escaping. This avoids a common problem called
+[leaning toothpick syndrome (LTS)](https://en.wikipedia.org/wiki/Leaning_toothpick_syndrome),
+where strings become unreadable due to the proliferation of escape characters
+needed to avoid delimiter collision (e.g., `"\\\\\\"`).
 
-When evaluating a JMESPath expression, it is often necessary to utilize string
-literals that are not extracted from the data being evaluated, but rather
-statically part of the compiled JMESPath expression. String literals are useful
-in many areas, but most notably when invoking functions or building up
-multi-select lists and hashes.
+When evaluating a JMESPath expression, it is often necessary to use string
+literals that are not extracted from the data being evaluated but are instead a
+static part of the expression. String literals are useful in many contexts, most
+notably when invoking functions or constructing multi-select lists and hashes.
 
-The following expression produces the three-character string “foo” using a `` `…` `` JSON text literal:
+The current JMESPath specification uses backticks (`` ` ``) for literals, which
+are parsed as JSON. For example, the following expression produces the
+three-character string "foo":
 
-```
+```jmespath
 `"foo"`
 ```
 
-### Obsolete alternative
+### Current Literal Behavior
 
-_This section recapitulates content from the original version of JEP-12 that is no longer accurate as of this replacement._
+The current specification is functionally equivalent to the example above but
+also allows the quotes to be elided from the JSON literal:
 
-The following expression is functionally equivalent. Notice that the quotes are
-elided from the JSON literal:
-```
+```jmespath
 `foo`
 ```
 
-These string literals are parsed using a JSON parser according to
-[RFC 4627](https://www.ietf.org/rfc/rfc4627.txt), which will expand unicode
-escape sequences, newline characters, and several other escape sequences
-documented in RFC 4627 section 2.5.
+These literals are parsed according to the JSON standard
+([RFC 4627](https://www.ietf.org/rfc/rfc4627.txt)), which expands Unicode escape
+sequences, newlines, and several other escape sequences. For example, the
+Unicode escape `\u002B` is expanded into `+`:
 
-For example, the use of an escaped unicode value `\u002B` is expanded into
-`+` in the following JMESPath expression:
-
-```
+```jmespath
 `"foo\u002B"` -> "foo+"
 ```
 
-You can escape escape sequences in JSON literals to prevent an escape sequence
-from being expanded:
+To prevent an escape sequence from being expanded, you must escape the backslash
+itself:
 
-```
+```jmespath
 `"foo\\u002B"` -> "foo\u002B"
 `foo\\u002B` -> "foo\u002B"
 ```
 
-While this allows you to provide literal strings, it presents the following
-problems:
+While this allows for providing literal strings, it presents several problems:
 
+1.  **Performance:** It incurs an unnecessary JSON parsing penalty.
+2.  **Complexity:** It requires the cognitive overhead of escaping characters to
+    represent data literally, which can lead to LTS. If the target string itself
+    contains escapes, the number of backslashes doubles, quickly becoming
+    unmanageable.
+3.  **Ambiguity:** It introduces an ambiguous rule to the JMESPath grammar that
+    requires prose-based clarification, leading to potential inconsistencies
+    between parser implementations.
 
-1. Incurs an additional JSON parsing penalty.
-
-
-2. Requires the cognitive overhead of escaping escape characters if you
-actually want the data to be represented as it was literally provided
-(which can lead to LTS). If the data being escaped was meant to be used
-along with another language that uses `\` as an escape character, then the
-number of backslash characters doubles.
-
-
-3. Introduces an ambiguous rule to the JMESPath grammar that requires a prose
-based specification to resolve the ambiguity in parser implementations.
-
-The relevant literal grammar rules are currently defined as follows:
+The relevant grammar rules are currently defined as follows:
 
 ```abnf
-literal = "`" json-value "`"
+literal = "`" json-text "`"
 literal =/ "`" 1*(unescaped-literal / escaped-literal) "`"
-unescaped-literal = %x20-21 /       ; space !
-                        %x23-5B /   ; # - [
-                        %x5D-5F /   ; ] ^ _
-                        %x61-7A     ; a-z
-                        %x7C-10FFFF ; |}~ ...
-escaped-literal   = escaped-char / (escape %x60)
+unescaped-literal = %x20-21 /     ; space !
+                      %x23-5B /     ; # - [
+                      %x5D-5F /     ; ] ^ _
+                      %x61-7A /     ; a-z
+                      %x7C-10FFFF   ; |}~ ...
+escaped-literal     = escaped-char / (escape %x60)
+
+; The following is a simplified subset of the JSON ABNF
+json-text = ws json-value ws
 json-value = false / null / true / json-object / json-array /
              json-number / json-quoted-string
-false = %x66.61.6c.73.65   ; false
+false = %x66.61.6c.73.65    ; false
 null  = %x6e.75.6c.6c      ; null
 true  = %x74.72.75.65      ; true
-json-quoted-string = %x22 1*(unescaped-literal / escaped-literal) %x22
-begin-array     = ws %x5B ws  ; [ left square bracket
-begin-object    = ws %x7B ws  ; { left curly bracket
-end-array       = ws %x5D ws  ; ] right square bracket
-end-object      = ws %x7D ws  ; } right curly bracket
-name-separator  = ws %x3A ws  ; : colon
-value-separator = ws %x2C ws  ; , comma
-ws              = *(%x20 /              ; Space
-                    %x09 /              ; Horizontal tab
-                    %x0A /              ; Line feed or New line
-                    %x0D                ; Carriage return
-                   )
-json-object = begin-object [ member *( value-separator member ) ] end-object
-member = quoted-string name-separator json-value
-json-array = begin-array [ json-value *( value-separator json-value ) ] end-array
-json-number = [ minus ] int [ frac ] [ exp ]
-decimal-point = %x2E       ; .
-digit1-9 = %x31-39         ; 1-9
-e = %x65 / %x45            ; e E
-exp = e [ minus / plus ] 1*DIGIT
-frac = decimal-point 1*DIGIT
-int = zero / ( digit1-9 *DIGIT )
-minus = %x2D               ; -
-plus = %x2B                ; +
-zero = %x30                ; 0
+json-quoted-string = %x22 1*(unescaped-char / escaped-char) %x22
+; ...etc.
 ```
 
-The `literal` rule is ambiguous because `unescaped-literal` includes
-all of the same characters that `json-value` match, allowing any value
-that is valid JSON to be matched on either `unescaped-literal` or
-`json-value`.
+The `literal` rule is ambiguous because the characters matched by
+`unescaped-literal` are a superset of those that can start a `json-text` value.
+This allows a given input to be matched by either rule, creating ambiguity.
 
-### Rationale
+---
 
-When implementing parsers for JMESPath, one must provide special case parsing
-when parsing JSON literals due to the allowance of elided quotes around JSON
-string literals (e.g., `` `foo` ``). This specific aspect of JMESPath cannot be
-described unambiguously in a context free grammar and could become a common
-cause of errors when implementing JMESPath parsers.
+## Rationale
 
-Parsing JSON literals has other complications as well. Here are the steps
-needed to currently parse a JSON literal value in JMESPath:
+The allowance of elided quotes around JSON string literals requires special-case
+handling in JMESPath parsers. This aspect of the specification cannot be
+described unambiguously in a context-free grammar and is a common source of
+implementation errors.
 
+Parsing these literals is overly complicated. The steps required to parse a JSON
+literal in JMESPath are:
 
-1. When a `` ` `` token is encountered, begin parsing a JSON literal.
+1.  When a `` ` `` token is encountered, begin parsing a literal.
+2.  Collect all characters between the opening and closing `` ` `` tokens into a
+    variable (e.g., `$lexeme`), respecting escaped backticks (`\` \`\`).
+3.  Create a temporary value, `$temp`, by trimming leading and trailing
+    whitespace from `$lexeme`. (This behavior is currently undocumented but is
+    required by the
+    [JMESPath compliance tests](https://github.com/jmespath-community/jmespath.test/blob/main/tests/syntax.json).
+4.  If `$temp` can be parsed as valid JSON, use the parsed result as the value
+    for the literal token.
+5.  If `$temp` cannot be parsed as valid JSON, treat the original `$lexeme` as a
+    string. This is equivalent to wrapping `$lexeme` in double quotes and
+    parsing the result as a JSON string. Therefore, `` `foo` `` is equivalent to
+    `` `"foo"` ``, and `` `[1, ]` `` is equivalent to `` `"[1, ]"` ``.
 
+It is reasonable to assume that the most common use case for a literal in a
+JMESPath expression is to provide a simple string value, either as a function
+argument or as a value in a multi-select list or hash. The original intent of
+eliding quotes was to make this common case easier.
 
-2. Collect each character between the opening `` ` `` and closing `` ` ``
-tokens, including any escaped `` ` `` characters (i.e., ``\` ``) and store the
-characters in a variable (let’s call it `$lexeme`).
+This proposal posits that this convenience introduces excessive complexity and
+ambiguity. A dedicated raw string literal is a clearer, more robust solution.
 
-
-3. Copy the contents of `$lexeme` to a temporary value in which all leading
-and trailing whitespace is removed. Let’s call this `$temp` (this is
-currently not documented but required in the
-[JMESPath compliance tests](https://github.com/jmespath/jmespath.test/blob/c532a20e3bca635fb6ca248e5e955e1bd146a965/tests/syntax.json#L592-L606)).
-
-
-4. If `$temp` can be parsed as valid JSON, then use the parsed result as the
-value for the literal token.
-
-
-5. If `$temp` cannot be parsed as valid JSON, then wrap the contents of
-`$lexeme` in double quotes and parse the wrapped value as a JSON string,
-making the following expressions equivalent: `` `foo` `` == `` `"foo"` ``, and
-`` `[1, ]` `` == `` `"[1, ]"` ``.
-
-It is reasonable to assume that the most common use case for a JSON literal in
-a JMESPath expression is to provide a string value to a function argument or
-to provide a literal string value to a value in a multi-select list or
-multi-select hash. In order to make providing string values easier, it was
-decided that JMESPath should allow the quotes around the string to be elided.
-
-This proposal posits that allowing quotes to be elided when parsing JSON
-literals should be prohibited in favor of the proper string literal syntax.
+---
 
 ## Specification
 
-A raw string literal is value that begins and ends with a single quote
-and preserves embedded backslashes except those used to escape
-backslash or single quote characters.
+A **raw string literal** is a value that begins and ends with a single quote
+(`'`). It preserves all characters literally, including backslashes, except for
+`\'` and `\\`, which are unescaped to a single quote and a backslash,
+respectively.
 
 ### Examples
 
-Here are several examples of valid raw string literals and how they are
-parsed:
+Here are several examples of valid raw string literals and their parsed values:
 
+- A basic raw string, representing the seven-character string "foo bar":
 
-* A basic raw string literal, representing the seven-character string “foo bar”:
+  ```jmespath
+  'foo bar'
+  ```
 
-```
-'foo bar'
-```
+- A raw string with an escaped single quote, representing the seven-character
+  string "foo'bar":
 
+  ```jmespath
+  'foo\'bar'
+  ```
 
-* A raw string literal with an escaped single quote, representing the seven-character string “foo'bar”:
+- A raw string with an escaped backslash, representing the seven-character
+  string "foo\\bar":
 
-```
-'foo\'bar'
-```
+  ```jmespath
+  'foo\\bar'
+  ```
 
+- A raw string that contains newlines:
 
-* A raw string literal with an escaped backslash character, representing the seven-character string “foo\bar”:
+  ```jmespath
+  'foo
+  bar
+  baz!'
+  ```
 
-```
-'foo\\bar'
-```
+  The expression above represents the multi-line string:
 
+  ```
+  foo
+  bar
+  baz!
+  ```
 
-* A raw string literal that contains new lines:
+- A raw string that contains a preserved escape sequence, representing the
+  eight-character string "foo\\nbar":
 
-```
-'foo
-bar
-baz!'
-```
-
-The above expression represents the multi-line string:
-
-```
-foo
-bar
-baz!
-```
-
-
-* A raw string literal that contains a preserved backslash character, representing the eight-character string “foo\nbar”:
-
-```
-'foo\nbar'
-```
+  ```jmespath
+  'foo\nbar'
+  ```
 
 ### ABNF
 
@@ -253,98 +215,78 @@ The following ABNF grammar rules will be added:
 ```abnf
 expression =/ raw-string
 raw-string = "'" *raw-string-char "'"
-raw-string-char = (%x00-26 /            ; ␀ through '&' (precedes U+0027 APOSTROPHE "'")
-                    %x28-5B /           ; '(' through '[' (precedes U+005C REVERSE SOLIDUS '\')
-                    %x5D-10FFFF) /      ; ']' and all following code points
+raw-string-char   = unescaped-raw-string-char /
                     preserved-escape /
                     raw-string-escape
-preserved-escape = escape (
-                    %x00-26 /           ;  ␀ through '&' (precedes U+0027 APOSTROPHE "'")
-                    %x28-5B /           ; '(' through '[' (precedes U+005C REVERSE SOLIDUS '\')
-                    %x5D-10FFFF)        ; ']' and all following code points
-raw-string-escape = escape (
-                    "'" /               ; U+0027 APOSTROPHE "'"
-                    escape)             ; U+005C REVERSE SOLIDUS '\'
-
+unescaped-raw-string-char = %x00-26 /     ; ␀ through '&' (precedes ')
+                            %x28-5B /     ; '(' through '[' (precedes \)
+                            %x5D-10FFFF   ; ']' and all following code points
+preserved-escape  = escape (%x00-26 / %x28-5B / %x5D-10FFFF)
+raw-string-escape = escape ("'" / escape) ; U+0027 ' or U+005C \
 ```
 
-These rules allow any character inside of a raw string,
-including control characters and escaped single quotes or backslashes.
+These rules allow any character inside a raw string. Only a backslash followed
+by a single quote or another backslash is interpreted as an escape sequence. All
+other backslash sequences (e.g., `\n`, `\t`) are preserved literally.
 
-In addition to adding a `raw-string` rule, the `literal` rule in the ABNF
-will be simplified to become:
+In addition, the `literal` rule in the ABNF will be simplified to remove
+ambiguity:
 
-```
+```abnf
 literal = "`" json-text "`"
 ```
 
+This change requires that any content within backticks must be a valid,
+self-contained JSON document.
+
+---
+
 ## Impact
 
-The impact to existing users of JMESPath is that the use of a JSON literal
-in which the quotes are elided MUST be quoted or converted to use the
-raw-string rule of the grammar.
+This is a **breaking change**. Existing JMESPath expressions that use unquoted
+literals (e.g., `` `foo` ``) will no longer be valid. Users must update these
+expressions to either use valid JSON within the backticks (e.g., `` `"foo"` ``)
+or, preferably, adopt the new raw string syntax (e.g., `'foo'`).
 
-To accommodate legacy JMESPath implementations, all of
-the JSON literal compliance test cases that involve elided quotes MUST be
-removed, and test cases regarding failing on invalid unquoted JSON values
-MUST NOT be allowed in the compliance test unless placed in a JEP 12 specific
-test suite, allowing such implementations to filter them out.
+To accommodate legacy JMESPath implementations during a transition period, all
+compliance tests for unquoted literals should be moved to a JEP-12-specific test
+suite. This allows implementations to explicitly opt-in or out of testing for
+the deprecated behavior.
 
-## Alternative approaches
+---
 
-There are several alternative approaches that could be taken.
+## Alternative Approaches
 
-### Leave as-is
+### Leave As-Is
 
-This is a valid and reasonable suggestion. Leaving JMESPath as-is would avoid
-a breaking change to the grammar and users could continue to use multiple
-escape characters to avoid delimiter collision.
+The simplest alternative is to make no changes. This would avoid a breaking
+change, and users could continue to use backslash-escaping to handle special
+characters. However, the goal of this proposal is not to add functionality but
+to make JMESPath easier to use, reason about, and implement. The current
+behavior of literal parsing is ambiguous and can lead to subtle differences
+between implementations. For example:
 
-The goal of this proposal is not to add functionality to JMESPath, but rather
-to make the language easier to use, easier to reason about, and easier to
-implement. As it currently stands, the behavior of JSON parsing is ambiguous
-and requires special casing when implementing a JMESPath parser. It also allows
-for minor differences in implementations due to this ambiguity.
-
-Take the following example:
-
-```
+```jmespath
 `[1`
 ```
 
-One implementation may interpret this expression as a JSON string with the
-string value of `"[1"`, while other implementations may raise a parse error
-because the first character of the expression appears to be valid JSON.
+One implementation might parse this as the string `"[1"`, while another might
+raise a parse error because the content begins like, but is not, valid JSON.
+Requiring valid JSON within backticks removes this ambiguity entirely.
 
-By updating the grammar to require valid JSON in the JSON literal token, we can
-remove this ambiguity completely, removing a potential source of inconsistency
-from the various JMESPath implementations.
+### Disallow Single Quotes in a Raw String
 
-### Disallow single quotes in a raw string
+An alternative could be to forbid single quotes within a raw string literal,
+removing the need for `\'`. While this would simplify the grammar, it would
+severely limit the feature's utility, forcing users back to JSON literals for
+any string containing a single quote.
 
-This proposal states that single quotes in a raw string literal must be escaped
-with a backslash. An alternative approach could be to not allow single quotes
-in a raw string literal. While this would simplify the `raw-string` grammar
-rule, it would severely limit the usability of the `raw-string` rule, forcing
-users to use the `literal` rule.
+### Use a Customizable Delimiter
 
-### Use a customizable delimiter
+Languages like Lua, D, and C++11 allow custom delimiters for raw strings, such
+as `[==[foo=bar]==]`. This approach is very flexible and eliminates the need for
+any escaping. However, it requires a stateful parser that cannot be expressed in
+a simple context-free grammar, adding significant complexity to implementations.
 
-Several languages allow for a custom delimiter to be placed around a raw
-string. For example, Lua allows for a [long bracket](https://www.lua.org/manual/5.2/manual.html#3.1) notation in which raw
-strings are surrounded by `[[]]` with any number of balanced = characters
-between the brackets:
-
-```
-[==[foo=bar]==] -- parsed as "foo=bar"
-```
-
-This approach is very flexible and removes the need to escape any characters;
-however, this can not be expressed in a regular grammar. A parser would need to
-keep track of the number of opened delimiters and ensure that it is closed with
-the appropriate number of matching characters.
-
-The addition of a string literal as described in this JEP does not preclude a
-later addition of a heredoc or delimited style string literal as provided by
-languages like Lua, [D](https://dlang.org/lex.html#DelimitedString),
-[C++](https://en.wikipedia.org/wiki/C%2B%2B11#New_string_literals), etc…
+The addition of the single-quoted string literal proposed in this JEP does not
+preclude the future addition of a more advanced delimited string syntax.
